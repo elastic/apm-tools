@@ -21,7 +21,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -38,55 +40,58 @@ func (cmd *Commands) getClient() (*apmclient.Client, error) {
 	return apmclient.New(cmd.cfg)
 }
 
-func (cmd *Commands) envCommand(c *cli.Context) error {
-	client, err := cmd.getClient()
+func (cmd *Commands) sendEventsCommand(c *cli.Context) error {
+	creds, err := cmd.getCredentials(c)
 	if err != nil {
 		return err
 	}
 
-	creds, err := readCachedCredentials(cmd.cfg.APMServerURL)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	if creds == nil {
-		var expiry time.Time
-		// First check if there's an Elastic Cloud integration policy,
-		// and extract a secret token from that. Otherwise, create an
-		// API Key.
-		var apiKey, secretToken string
-		policy, err := client.GetElasticCloudAPMInput(c.Context)
+	var body io.Reader
+	filename := c.String("file")
+	if filename == "-" {
+		body = io.NopCloser(os.Stdin)
+	} else {
+		f, err := os.Open(filename)
 		if err != nil {
-			policyErr := fmt.Errorf("error getting APM cloud input: %w", err)
-			if c.Bool("verbose") {
-				fmt.Fprintln(os.Stderr, policyErr)
-			}
-			// Create an API Key.
-			fmt.Fprintln(os.Stderr, "Creating agent API Key...")
-			expiryDuration := c.Duration("api-key-expiration")
-			if expiryDuration > 0 {
-				expiry = time.Now().Add(expiryDuration)
-			}
-			apiKey, err = client.CreateAgentAPIKey(c.Context, expiryDuration)
-			if err != nil {
-				apiKeyErr := err
-				return fmt.Errorf(
-					"failed to obtain agent credentials: %w",
-					errors.Join(apiKeyErr, policyErr),
-				)
-			}
-		} else {
-			secretToken = policy.Get("apm-server.auth.secret_token").String()
+			return fmt.Errorf("error opening file: %w", err)
 		}
-		creds = &credentials{
-			Expiry:      expiry,
-			APIKey:      apiKey,
-			SecretToken: secretToken,
-		}
-		if err := updateCachedCredentials(cmd.cfg.APMServerURL, creds); err != nil {
-			return err
-		}
+		defer f.Close()
+		body = f
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		cmd.cfg.APMServerURL+"/intake/v2/events?verbose",
+		body,
+	)
+	if err != nil {
+		return fmt.Errorf("error creating HTTP request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-ndjson")
+
+	switch {
+	case creds.SecretToken != "":
+		req.Header.Set("Authorization", "Bearer "+creds.SecretToken)
+	case creds.APIKey != "":
+		req.Header.Set("Authorization", "ApiKey "+creds.APIKey)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error performing HTTP request: %w", err)
+	}
+	defer resp.Body.Close()
+	io.Copy(os.Stderr, resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("error sending events; server responded with %q", resp.Status)
+	}
+	return nil
+}
+
+func (cmd *Commands) envCommand(c *cli.Context) error {
+	creds, err := cmd.getCredentials(c)
+	if err != nil {
+		return err
 	}
 
 	fmt.Printf("export ELASTIC_APM_SERVER_URL=%q;\n", cmd.cfg.APMServerURL)
@@ -104,6 +109,58 @@ func (cmd *Commands) envCommand(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+func (cmd *Commands) getCredentials(c *cli.Context) (*credentials, error) {
+	creds, err := readCachedCredentials(cmd.cfg.APMServerURL)
+	if err == nil {
+		return creds, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	client, err := cmd.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	var expiry time.Time
+	// First check if there's an Elastic Cloud integration policy,
+	// and extract a secret token from that. Otherwise, create an
+	// API Key.
+	var apiKey, secretToken string
+	policy, err := client.GetElasticCloudAPMInput(c.Context)
+	if err != nil {
+		policyErr := fmt.Errorf("error getting APM cloud input: %w", err)
+		if c.Bool("verbose") {
+			fmt.Fprintln(os.Stderr, policyErr)
+		}
+		// Create an API Key.
+		fmt.Fprintln(os.Stderr, "Creating agent API Key...")
+		expiryDuration := c.Duration("api-key-expiration")
+		if expiryDuration > 0 {
+			expiry = time.Now().Add(expiryDuration)
+		}
+		apiKey, err = client.CreateAgentAPIKey(c.Context, expiryDuration)
+		if err != nil {
+			apiKeyErr := err
+			return nil, fmt.Errorf(
+				"failed to obtain agent credentials: %w",
+				errors.Join(apiKeyErr, policyErr),
+			)
+		}
+	} else {
+		secretToken = policy.Get("apm-server.auth.secret_token").String()
+	}
+	creds = &credentials{
+		Expiry:      expiry,
+		APIKey:      apiKey,
+		SecretToken: secretToken,
+	}
+	if err := updateCachedCredentials(cmd.cfg.APMServerURL, creds); err != nil {
+		return nil, err
+	}
+	return creds, nil
 }
 
 func (cmd *Commands) servicesCommand(c *cli.Context) error {
@@ -186,6 +243,18 @@ func main() {
 				&cli.DurationFlag{
 					Name:  "api-key-expiration",
 					Usage: "specify how long before a created API Key expires. 0 means it never expires.",
+				},
+			},
+		}, {
+			Name:   "send-events",
+			Usage:  "send events stored in ND-JSON format",
+			Action: commands.sendEventsCommand,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "file",
+					Aliases:  []string{"f"},
+					Required: true,
+					Usage:    "File containing the payload to send, in ND-JSON format. Use '-' to read from stdin.",
 				},
 			},
 		}, {
