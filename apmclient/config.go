@@ -44,6 +44,12 @@ type Config struct {
 	// If this is unspecified, it will be derived from
 	// ElasticsearchURL if that is an Elastic Cloud URL.
 	APMServerURL string
+
+	// KibanaURL holds the Kibana URL.
+	//
+	// If this is unspecified, it will be derived from
+	// ElasticsearchURL if that is an Elastic Cloud URL.
+	KibanaURL string
 }
 
 // NewConfig returns a Config intialised from environment variables.
@@ -61,10 +67,12 @@ func NewConfig() (Config, error) {
 //   - Password is set from $ELASTICSEARCH_PASSWORD
 //   - API Key is set from $ELASTICSEARCH_API_KEY
 //   - APMServerURL is set from $ELASTIC_APM_SERVER_URL
+//   - KibanaURL is set from $KIBANA_URL
 //
 // If $ELASTIC_APM_SERVER_URL is unspecified, and ElasticsearchURL
 // holds an Elastic Cloud-based URL, then the APM Server URL is
-// derived from that.
+// derived from that. Likewise, the Kibana URL will be set in this
+// way if $KIBANA_URL is unspecified.
 func (cfg *Config) Finalize() error {
 	if cfg.ElasticsearchURL == "" {
 		cfg.ElasticsearchURL = os.Getenv("ELASTICSEARCH_URL")
@@ -81,27 +89,41 @@ func (cfg *Config) Finalize() error {
 	if cfg.APMServerURL == "" {
 		cfg.APMServerURL = os.Getenv("ELASTIC_APM_SERVER_URL")
 	}
-	return cfg.InferAPMServerURL()
+	if cfg.KibanaURL == "" {
+		cfg.KibanaURL = os.Getenv("KIBANA_URL")
+	}
+	return cfg.InferElasticCloudURLs()
 }
 
-// InferAPMServerURL attempts to infer a value for APMServerURL (if empty)
-// by checking if ElasticsearchURL matches an Elastic Cloud URL pattern,
-// and deriving the APM URL from that.
-func (cfg *Config) InferAPMServerURL() error {
-	if cfg.APMServerURL != "" || cfg.ElasticsearchURL == "" {
+// InferElasticCloudURLs attempts to infer a value for APMServerURL
+// and KibanaURL (if they are empty), by checking if ElasticsearchURL
+// matches an Elastic Cloud URL pattern, and deriving the other URLs
+// from that.
+func (cfg *Config) InferElasticCloudURLs() error {
+	if cfg.ElasticsearchURL == "" {
 		return nil
 	}
+	if cfg.APMServerURL != "" && cfg.KibanaURL != "" {
+		return nil
+	}
+
 	// If ElasticsearchURL matches https://<alias>.es.<...>
 	// then derive the APM Server URL from that by substituting
-	// "apm" for "es".
+	// "apm" for "es", and Kibana URL by substituing "kb".
 	url, err := url.Parse(cfg.ElasticsearchURL)
 	if err != nil {
 		return fmt.Errorf("error parsing ElasticsearchURL: %w", err)
 	}
 	if alias, remainder, ok := strings.Cut(url.Host, "."); ok {
 		if component, remainder, ok := strings.Cut(remainder, "."); ok && component == "es" {
-			url.Host = fmt.Sprintf("%s.apm.%s", alias, remainder)
-			cfg.APMServerURL = url.String()
+			if cfg.APMServerURL == "" {
+				url.Host = fmt.Sprintf("%s.apm.%s", alias, remainder)
+				cfg.APMServerURL = url.String()
+			}
+			if cfg.KibanaURL == "" {
+				url.Host = fmt.Sprintf("%s.kb.%s", alias, remainder)
+				cfg.KibanaURL = url.String()
+			}
 		}
 	}
 	return nil
