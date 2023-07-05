@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/apm-tool/pkg/espoll"
+	"github.com/elastic/apm-tools/pkg/espoll"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
