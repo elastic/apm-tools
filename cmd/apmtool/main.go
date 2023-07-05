@@ -31,7 +31,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/elastic/apm-tool/apmclient"
+	"github.com/elastic/apm-tool/pkg/apmclient"
 )
 
 type Commands struct {

@@ -74,7 +74,7 @@ func main() {
 		"Elasticsearch password.",
 	)
 	flag.StringVar(&cfg.esURL, "elasticsearch-url", os.Getenv("ELASTICSEARCH_URL"),
-		"Elasticsearch password.",
+		"Elasticsearch URL.",
 	)
 	flag.Parse()
 
