@@ -1,4 +1,4 @@
-module github.com/elastic/apm-tool
+module github.com/elastic/apm-tools
 
 go 1.20
 
