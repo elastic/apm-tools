@@ -4,8 +4,11 @@ go 1.20
 
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.8.1
+	github.com/fatih/color v1.15.0
 	github.com/gofrs/flock v0.8.1
+	github.com/google/go-cmp v0.5.9
 	github.com/tidwall/gjson v1.14.4
+	github.com/tidwall/sjson v1.2.5
 	github.com/urfave/cli/v3 v3.0.0-alpha4
 	go.elastic.co/apm/v2 v2.4.3
 )
@@ -17,6 +20,8 @@ require (
 	github.com/elastic/go-sysinfo v1.7.1 // indirect
 	github.com/elastic/go-windows v1.0.0 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
