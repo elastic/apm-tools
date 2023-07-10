@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// Package approvaltest contains helper functions to compare and assert
+// the received content of a test vs the accepted.
 package approvaltest
 
 import (
