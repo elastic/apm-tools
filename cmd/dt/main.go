@@ -46,7 +46,7 @@ func main() {
 
 func Main(ctx context.Context, cfg config) error {
 	if cfg.sampleRate < 0.1 || cfg.sampleRate > 1.0 {
-		return errors.New("Invalid sample rate provided. allowed value: 0.1 <= sample-rate <= 1.0")
+		return errors.New("invalid sample rate provided. allowed value: 0.1 <= sample-rate <= 1.0")
 	}
 
 	_, err := indexIntakeV2Trace(cfg, 0)
@@ -60,7 +60,7 @@ func indexIntakeV2Trace(cfg config, idOverride byte) (byte, error) {
 	tracer, err := apm.NewTracer(serviceName, "0.0.1")
 
 	if err != nil {
-		return 0, errors.New("Failed to instantiate tracer")
+		return 0, errors.New("failed to instantiate tracer")
 	}
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
