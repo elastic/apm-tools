@@ -27,8 +27,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/elastic/apm-tools/pkg/tracegen"
 	"go.elastic.co/apm/v2"
+
+	"github.com/elastic/apm-tools/pkg/tracegen"
 )
 
 func main() {
