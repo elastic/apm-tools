@@ -31,11 +31,6 @@ import (
 	"go.elastic.co/apm/v2"
 )
 
-type Config struct {
-	SampleRate float64
-	TraceID    apm.TraceID
-}
-
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
 func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (apm.TraceID, error) {
 	// flush before creating a new trace

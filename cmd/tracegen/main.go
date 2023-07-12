@@ -28,6 +28,10 @@ import (
 	"os/signal"
 
 	"go.elastic.co/apm/v2"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zapgrpc"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/elastic/apm-tools/pkg/tracegen"
 )
@@ -36,7 +40,23 @@ func main() {
 	var cfg tracegen.Config
 
 	flag.Float64Var(&cfg.SampleRate, "sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
+	logLevel := zap.LevelFlag(
+		"loglevel", zapcore.InfoLevel,
+		"set log level to one of: DEBUG, INFO (default), WARN, ERROR, DPANIC, PANIC, FATAL",
+	)
+
 	flag.Parse()
+	zapcfg := zap.NewProductionConfig()
+	zapcfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+	zapcfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	zapcfg.Encoding = "console"
+	zapcfg.Level = zap.NewAtomicLevelAt(*logLevel)
+	logger, err := zapcfg.Build()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync()
+	grpclog.SetLogger(zapgrpc.NewLogger(logger, zapgrpc.WithDebug()))
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
@@ -45,7 +65,7 @@ func main() {
 	}
 }
 
-func Main(ctx context.Context, cfg tracegen.Config) error {
+func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger) error {
 	uniqueName := suffixString("trace")
 	serviceName := "service-" + uniqueName
 	tracer, err := apm.NewTracer(serviceName, "0.0.1")
@@ -54,10 +74,12 @@ func Main(ctx context.Context, cfg tracegen.Config) error {
 	}
 
 	traceID, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
+	if err != nil {
+		return err
+	}
 	cfg.TraceID = traceID
 
-	// TODO: call otlp trace gen with given traceID
-	return err
+	return tracegen.IndexOTLPTrace(ctx, cfg, otlogger)
 }
 
 func suffixString(s string) string {
