@@ -46,8 +46,9 @@ func main() {
 		"loglevel", zapcore.InfoLevel,
 		"set log level to one of: DEBUG, INFO (default), WARN, ERROR, DPANIC, PANIC, FATAL",
 	)
-
 	flag.Parse()
+
+	// set logger for otlp
 	zapcfg := zap.NewProductionConfig()
 	zapcfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
 	zapcfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
@@ -75,13 +76,13 @@ func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger)
 	}
 
 	cfg.TraceID = tracegen.NewRandomTraceID()
-	err = tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
+	txCtx, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
 	if err != nil {
 		return err
 	}
 
-	traceparent := apmhttp.FormatTraceparentHeader(traceCtx)
-	tracestate := traceCtx.State.String()
+	traceparent := apmhttp.FormatTraceparentHeader(txCtx)
+	tracestate := txCtx.State.String()
 	ctx = tracegen.SetTracePropagator(ctx, traceparent, tracestate)
 	return tracegen.IndexOTLPTrace(ctx, cfg, otlogger, getUniqueServiceName("service", "otlp"))
 }
