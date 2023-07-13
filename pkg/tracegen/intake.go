@@ -28,16 +28,17 @@ import (
 	"math/rand"
 	"time"
 
+	apmhttp "go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
 )
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (apm.TraceID, error) {
+func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (string, string, error) {
 	// flush before creating a new trace
 	tracer.Flush(ctx.Done())
 
 	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
-		return cfg.TraceID, errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
+		return "", "", errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
 	}
 	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
 
@@ -93,5 +94,8 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (ap
 	tx.End()
 	tracer.Flush(ctx.Done())
 
-	return traceID, nil
+	tctx := tx.TraceContext()
+	traceparent := apmhttp.FormatTraceparentHeader(tctx)
+	tracestate := traceContext.State.String()
+	return traceparent, tracestate, nil
 }

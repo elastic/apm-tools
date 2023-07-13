@@ -30,9 +30,12 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/metric/export"
 	"go.opentelemetry.io/otel/sdk/metric/export/aggregation"
@@ -49,6 +52,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+type OTLPConfig struct {
+	Config,
+	ServiceName string
+}
+
 func getenvDefault(key, defaultVal string) string {
 	val := os.Getenv(key)
 	if val != "" {
@@ -57,7 +65,7 @@ func getenvDefault(key, defaultVal string) string {
 	return defaultVal
 }
 
-func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger) error {
+func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, serviceName string) error {
 	endpoint := getenvDefault("ELASTIC_APM_SERVER_URL", "http://localhost:8200")
 	endpointURL, err := url.Parse(endpoint)
 	if err != nil {
@@ -83,19 +91,20 @@ func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger) 
 	defer otlpExporters.cleanup(ctx)
 
 	logger.Infof("sending OTLP data to %s (%s)", endpointURL.String(), cfg.OTLPProtocol)
-
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSyncer(loggingExporter{logger.Desugar()}),
 		sdktrace.WithSyncer(otlpExporters.trace),
+		sdktrace.WithResource(
+			resource.NewSchemaless(attribute.String("service.name", serviceName)),
+		),
 	)
-
 	logExporter := chainLogExporter{loggingLogExporter{logger.Desugar()}, otlpExporters.log}
 	// generateSpans returns ctx that contains trace context
 	ctx, err = generateSpans(ctx, tracerProvider.Tracer("tracegen"), trace.TraceID(cfg.TraceID))
 	if err != nil {
 		return err
 	}
-	if err := generateLogs(ctx, logExporter); err != nil {
+	if err := generateLogs(ctx, logExporter, serviceName); err != nil {
 		return err
 	}
 
@@ -108,8 +117,8 @@ func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger) 
 
 func generateSpans(ctx context.Context, tracer trace.Tracer, traceID trace.TraceID) (context.Context, error) {
 	ctx, parent := tracer.Start(ctx, "parent")
-	spanCtx := parent.SpanContext().WithTraceID(traceID)
-	ctx = trace.ContextWithSpanContext(ctx, spanCtx)
+	// spanCtx := parent.SpanContext().WithTraceID(traceID)
+	// ctx = trace.ContextWithSpanContext(ctx, spanCtx)
 	defer parent.End()
 
 	_, child1 := tracer.Start(ctx, "child1")
@@ -125,13 +134,14 @@ func generateSpans(ctx context.Context, tracer trace.Tracer, traceID trace.Trace
 	return ctx, nil
 }
 
-func generateLogs(ctx context.Context, logger otlplogExporter) error {
+func generateLogs(ctx context.Context, logger otlplogExporter, serviceName string) error {
 	logs := plog.NewLogs()
 
 	rl := logs.ResourceLogs().AppendEmpty()
 	attribs := rl.Resource().Attributes()
 	attribs.Insert(string(semconv.ServiceNameKey),
-		pcommon.NewValueString(getenvDefault("OTEL_SERVICE_NAME", "unknown_service")))
+		pcommon.NewValueString(serviceName),
+	)
 	sl := rl.ScopeLogs().AppendEmpty().LogRecords()
 	record := sl.AppendEmpty()
 	record.Body().SetStringVal("test record")
@@ -367,4 +377,15 @@ type loggingLogExporter struct {
 func (e loggingLogExporter) Export(ctx context.Context, logs plog.Logs) error {
 	e.logger.Info("exporting logs", zap.Int("count", logs.LogRecordCount()))
 	return nil
+}
+
+func SetTracePropagator(ctx context.Context, traceparent string, tracestate string) context.Context {
+	m := propagation.MapCarrier{}
+	m.Set("traceparent", traceparent)
+	m.Set("tracestate", tracestate)
+	tc := propagation.TraceContext{}
+	// Register the TraceContext propagator globally.
+	otel.SetTextMapPropagator(tc)
+
+	return tc.Extract(ctx, m)
 }

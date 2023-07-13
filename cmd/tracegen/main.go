@@ -22,7 +22,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -40,6 +39,8 @@ func main() {
 	var cfg tracegen.Config
 
 	flag.Float64Var(&cfg.SampleRate, "sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
+	flag.StringVar(&cfg.OTLPProtocol, "protocol", "grpc", "set transport protocol to one of: grpc (default), http/protobuf")
+	flag.BoolVar(&cfg.Insecure, "insecure", false, "skip the server's TLS certificate verification")
 	logLevel := zap.LevelFlag(
 		"loglevel", zapcore.InfoLevel,
 		"set log level to one of: DEBUG, INFO (default), WARN, ERROR, DPANIC, PANIC, FATAL",
@@ -56,32 +57,37 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync()
-	grpclog.SetLogger(zapgrpc.NewLogger(logger, zapgrpc.WithDebug()))
+	grpclog.SetLoggerV2(zapgrpc.NewLogger(logger))
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
-	if err := Main(ctx, cfg); err != nil {
-		log.Fatal(err)
+	if err := Main(ctx, cfg, logger.Sugar()); err != nil {
+		logger.Fatal("error sending data", zap.Error(err))
 	}
 }
 
 func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger) error {
-	uniqueName := suffixString("trace")
-	serviceName := "service-" + uniqueName
-	tracer, err := apm.NewTracer(serviceName, "0.0.1")
+	// set up intake tracegen
+	tracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
 	if err != nil {
-		return errors.New("failed to instantiate tracer")
+		return errors.New("failed to instantiate apm tracer")
 	}
 
-	traceID, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
+	traceparent, tracestate, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
+
+	fmt.Println("traceID: ", traceparent, tracestate)
 	if err != nil {
 		return err
 	}
-	cfg.TraceID = traceID
 
-	return tracegen.IndexOTLPTrace(ctx, cfg, otlogger)
+	ctx = tracegen.SetTracePropagator(ctx, traceparent, tracestate)
+	return tracegen.IndexOTLPTrace(ctx, cfg, otlogger, getUniqueServiceName("service", "otlp"))
 }
 
+func getUniqueServiceName(prefix string, suffix string) string {
+	uniqueName := suffixString(suffix)
+	return prefix + "-" + uniqueName
+}
 func suffixString(s string) string {
 	const letter = "abcdefghijklmnopqrstuvwxyz"
 	b := make([]byte, 6)
