@@ -53,8 +53,8 @@ func Main(ctx context.Context, cfg tracegen.Config) error {
 		return errors.New("failed to instantiate tracer")
 	}
 
-	traceID, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
-	cfg.TraceID = traceID
+	cfg.TraceID = tracegen.NewRandomTraceID()
+	err = tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
 
 	// TODO: call otlp trace gen with given traceID
 	return err

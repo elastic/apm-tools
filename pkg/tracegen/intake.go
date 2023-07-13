@@ -21,11 +21,9 @@ package tracegen
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"time"
 
 	"go.elastic.co/apm/v2"
@@ -37,9 +35,9 @@ type Config struct {
 }
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (apm.TraceID, error) {
+func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) error {
 	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
-		return cfg.TraceID, errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
+		return errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
 	}
 	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
 
@@ -48,14 +46,8 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (ap
 		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.SampleRate),
 	})
 
-	traceID := cfg.TraceID
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	if traceID.Validate() != nil {
-		binary.LittleEndian.PutUint64(traceID[:8], r.Uint64())
-		binary.LittleEndian.PutUint64(traceID[8:], r.Uint64())
-	}
 	traceContext := apm.TraceContext{
-		Trace:   traceID,
+		Trace:   cfg.TraceID,
 		Options: apm.TraceOptions(0).WithRecorded(true),
 		State:   ts,
 	}
@@ -96,5 +88,5 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (ap
 	tx.End()
 	tracer.Flush(ctx.Done())
 
-	return traceID, nil
+	return nil
 }
