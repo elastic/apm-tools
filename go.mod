@@ -10,6 +10,7 @@ require (
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
 	github.com/urfave/cli/v3 v3.0.0-alpha4
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.3
 	go.elastic.co/apm/v2 v2.4.3
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.56.2
@@ -20,7 +21,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
-	go.elastic.co/apm/module/apmhttp/v2 v2.4.3 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.8.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.18.0 // indirect
 	golang.org/x/net v0.9.0 // indirect

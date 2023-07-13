@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 
+	apmhttp "go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -73,13 +74,13 @@ func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger)
 		return errors.New("failed to instantiate apm tracer")
 	}
 
-	traceparent, tracestate, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
-
-	fmt.Println("traceID: ", traceparent, tracestate)
+	traceCtx, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
 	if err != nil {
 		return err
 	}
 
+	traceparent := apmhttp.FormatTraceparentHeader(traceCtx)
+	tracestate := traceCtx.State.String()
 	ctx = tracegen.SetTracePropagator(ctx, traceparent, tracestate)
 	return tracegen.IndexOTLPTrace(ctx, cfg, otlogger, getUniqueServiceName("service", "otlp"))
 }
