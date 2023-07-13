@@ -38,9 +38,6 @@ type Config struct {
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
 func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (apm.TraceID, error) {
-	// flush before creating a new trace
-	tracer.Flush(ctx.Done())
-
 	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
 		return cfg.TraceID, errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
 	}
@@ -52,9 +49,10 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (ap
 	})
 
 	traceID := cfg.TraceID
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if traceID.Validate() != nil {
-		binary.LittleEndian.PutUint64(traceID[:8], rand.Uint64())
-		binary.LittleEndian.PutUint64(traceID[8:], rand.Uint64())
+		binary.LittleEndian.PutUint64(traceID[:8], r.Uint64())
+		binary.LittleEndian.PutUint64(traceID[8:], r.Uint64())
 	}
 	traceContext := apm.TraceContext{
 		Trace:   traceID,
