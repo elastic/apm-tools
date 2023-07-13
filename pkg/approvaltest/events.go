@@ -20,6 +20,7 @@ package approvaltest
 import (
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/tidwall/gjson"
@@ -91,8 +92,16 @@ func (hits apmEventSearchHits) Swap(i, j int) {
 
 func (hits apmEventSearchHits) Less(i, j int) bool {
 	for _, field := range apmEventSortFields {
-		ri := gjson.GetBytes(hits[i].RawSource, field)
-		rj := gjson.GetBytes(hits[j].RawSource, field)
+		path := strings.ReplaceAll(field, ".", "\\.")
+		ri := gjson.GetBytes(hits[i].RawFields, path)
+		rj := gjson.GetBytes(hits[j].RawFields, path)
+		if ri.Exists() && rj.Exists() {
+			// 'fields' always returns an array
+			// of values, but all of the fields
+			// we sort on are single value fields.
+			ri = ri.Array()[0]
+			rj = rj.Array()[0]
+		}
 		if ri.Less(rj, true) {
 			return true
 		}
@@ -100,6 +109,6 @@ func (hits apmEventSearchHits) Less(i, j int) bool {
 			return false
 		}
 	}
-	// All _source fields are equivalent, so compare doc _ids.
+	// All sort fields are equivalent, so compare doc _ids.
 	return hits[i].ID < hits[j].ID
 }

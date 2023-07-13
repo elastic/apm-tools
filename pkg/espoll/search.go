@@ -158,15 +158,16 @@ type SearchHit struct {
 	Fields    map[string][]any
 	Source    map[string]any
 	RawSource json.RawMessage
+	RawFields json.RawMessage
 }
 
 func (h *SearchHit) UnmarshalJSON(data []byte) error {
 	var searchHit struct {
-		Index  string           `json:"_index"`
-		ID     string           `json:"_id"`
-		Score  float64          `json:"_score"`
-		Source json.RawMessage  `json:"_source"`
-		Fields map[string][]any `json:"fields"`
+		Index  string          `json:"_index"`
+		ID     string          `json:"_id"`
+		Score  float64         `json:"_score"`
+		Source json.RawMessage `json:"_source"`
+		Fields json.RawMessage `json:"fields"`
 	}
 	if err := json.Unmarshal(data, &searchHit); err != nil {
 		return err
@@ -175,9 +176,16 @@ func (h *SearchHit) UnmarshalJSON(data []byte) error {
 	h.ID = searchHit.ID
 	h.Score = searchHit.Score
 	h.RawSource = searchHit.Source
-	h.Fields = searchHit.Fields
+	h.RawFields = searchHit.Fields
 	h.Source = make(map[string]any)
-	return json.Unmarshal(h.RawSource, &h.Source)
+	h.Fields = make(map[string][]interface{})
+	if err := json.Unmarshal(h.RawSource, &h.Source); err != nil {
+		return fmt.Errorf("error unmarshaling _source: %w", err)
+	}
+	if err := json.Unmarshal(h.RawFields, &h.Fields); err != nil {
+		return fmt.Errorf("error unmarshaling fields: %w", err)
+	}
+	return nil
 }
 
 func (h *SearchHit) UnmarshalSource(out any) error {

@@ -74,7 +74,8 @@ func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger)
 		return errors.New("failed to instantiate apm tracer")
 	}
 
-	traceCtx, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
+	cfg.TraceID = tracegen.NewRandomTraceID()
+	err = tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
 	if err != nil {
 		return err
 	}
