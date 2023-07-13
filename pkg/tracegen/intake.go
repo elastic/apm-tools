@@ -28,17 +28,13 @@ import (
 	"math/rand"
 	"time"
 
-	apmhttp "go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
 )
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (string, string, error) {
-	// flush before creating a new trace
-	tracer.Flush(ctx.Done())
-
+func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (apm.TraceContext, error) {
 	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
-		return "", "", errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
+		return apm.TraceContext{}, errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
 	}
 	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
 
@@ -48,9 +44,10 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (st
 	})
 
 	traceID := cfg.TraceID
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if traceID.Validate() != nil {
-		binary.LittleEndian.PutUint64(traceID[:8], rand.Uint64())
-		binary.LittleEndian.PutUint64(traceID[8:], rand.Uint64())
+		binary.LittleEndian.PutUint64(traceID[:8], r.Uint64())
+		binary.LittleEndian.PutUint64(traceID[8:], r.Uint64())
 	}
 	traceContext := apm.TraceContext{
 		Trace:   traceID,
@@ -94,8 +91,5 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (st
 	tx.End()
 	tracer.Flush(ctx.Done())
 
-	tctx := tx.TraceContext()
-	traceparent := apmhttp.FormatTraceparentHeader(tctx)
-	tracestate := traceContext.State.String()
-	return traceparent, tracestate, nil
+	return tx.TraceContext(), nil
 }
