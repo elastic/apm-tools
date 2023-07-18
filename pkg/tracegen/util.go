@@ -19,7 +19,6 @@ package tracegen
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -34,18 +33,4 @@ func newRandomTraceID() apm.TraceID {
 	binary.LittleEndian.PutUint64(traceID[:8], r.Uint64())
 	binary.LittleEndian.PutUint64(traceID[8:], r.Uint64())
 	return traceID
-}
-
-func suffixString(s string) string {
-	const letter = "abcdefghijklmnopqrstuvwxyz"
-	b := make([]byte, 6)
-	for i := range b {
-		b[i] = letter[rand.Intn(len(letter))]
-	}
-	return fmt.Sprintf("%s-%s", s, string(b))
-}
-
-func getUniqueServiceName(prefix string, suffix string) string {
-	uniqueName := suffixString(suffix)
-	return prefix + "-" + uniqueName
 }

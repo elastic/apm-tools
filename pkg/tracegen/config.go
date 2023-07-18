@@ -31,4 +31,7 @@ type Config struct {
 	Password         string
 	APMServerURL     string
 	APIKey           string
+
+	ElasticAPMTracer *apm.Tracer
+	OTLPServiceName  string
 }

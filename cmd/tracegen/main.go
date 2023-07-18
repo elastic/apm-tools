@@ -21,11 +21,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"os/signal"
 
+	"go.elastic.co/apm/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zapgrpc"
@@ -75,9 +78,23 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	if err := tracegen.SendDistributedTrace(ctx, &cfg, logger.Sugar()); err != nil {
+	if err := Main(ctx, &cfg, logger.Sugar()); err != nil {
 		logger.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
+}
+
+func Main(ctx context.Context, cfg *tracegen.Config, logger *zap.SugaredLogger) error {
+	apmTracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
+	if err != nil {
+		return errors.New("failed to instantiate apm tracer")
+	}
+
+	cfg.ElasticAPMTracer = apmTracer
+	// note(kyungeunni): it becomes too complicated if we let the callers
+	// to supply the tracerProvider and exporters. but worth revisiting
+	cfg.OTLPServiceName = getUniqueServiceName("service", "otlp")
+
+	return tracegen.SendDistributedTrace(ctx, cfg, logger)
 }
 
 // configureEnv parses or sets env configs to work with both Elastic GO Agent and OTLP library
@@ -99,4 +116,18 @@ func configureEnv(cfg *tracegen.Config) error {
 	os.Setenv("ELASTIC_APM_SERVER_URL", cfg.APMServerURL)
 
 	return nil
+}
+
+func getUniqueServiceName(prefix string, suffix string) string {
+	uniqueName := suffixString(suffix)
+	return prefix + "-" + uniqueName
+}
+
+func suffixString(s string) string {
+	const letter = "abcdefghijklmnopqrstuvwxyz"
+	b := make([]byte, 6)
+	for i := range b {
+		b[i] = letter[rand.Intn(len(letter))]
+	}
+	return fmt.Sprintf("%s-%s", s, string(b))
 }

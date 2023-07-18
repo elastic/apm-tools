@@ -30,7 +30,7 @@ import (
 )
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer, logger *zap.SugaredLogger) (apm.TraceContext, error) {
+func IndexIntakeV2Trace(ctx context.Context, cfg Config, logger *zap.SugaredLogger) (apm.TraceContext, error) {
 	logger.Info("sample rate set to ", cfg.SampleRate)
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
@@ -43,7 +43,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer, log
 		State:   ts,
 	}
 
-	tx := tracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
+	tx := cfg.ElasticAPMTracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
 		TraceContext: traceContext,
 	})
 
@@ -65,7 +65,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer, log
 	exit.Outcome = "failure"
 
 	// error
-	e := tracer.NewError(errors.New("timeout"))
+	e := cfg.ElasticAPMTracer.NewError(errors.New("timeout"))
 	e.Culprit = "timeout"
 	e.SetSpan(exit)
 	e.Send()
@@ -77,7 +77,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer, log
 	tx.Duration = 2 * time.Second
 	tx.Outcome = "success"
 	tx.End()
-	tracer.Flush(ctx.Done())
+	cfg.ElasticAPMTracer.Flush(ctx.Done())
 
 	return tx.TraceContext(), nil
 }
