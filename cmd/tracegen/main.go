@@ -21,15 +21,11 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"math"
-	"math/rand"
 	"os"
 	"os/signal"
 
-	apmhttp "go.elastic.co/apm/module/apmhttp/v2"
-	apm "go.elastic.co/apm/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zapgrpc"
@@ -78,42 +74,10 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
-	if err := Main(ctx, cfg, logger.Sugar()); err != nil {
-		logger.Fatal("error sending data", zap.Error(err))
+
+	if err := tracegen.SendDistributedTrace(ctx, &cfg, logger.Sugar()); err != nil {
+		logger.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
-}
-
-func Main(ctx context.Context, cfg tracegen.Config, logger *zap.SugaredLogger) error {
-	// set up intake tracegen
-	tracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
-	if err != nil {
-		return errors.New("failed to instantiate apm tracer")
-	}
-
-	cfg.TraceID = tracegen.NewRandomTraceID()
-	txCtx, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer, logger)
-	if err != nil {
-		return err
-	}
-
-	traceparent := apmhttp.FormatTraceparentHeader(txCtx)
-	tracestate := txCtx.State.String()
-	ctx = tracegen.SetTracePropagator(ctx, traceparent, tracestate)
-	return tracegen.IndexOTLPTrace(ctx, cfg, logger, getUniqueServiceName("service", "otlp"))
-}
-
-func getUniqueServiceName(prefix string, suffix string) string {
-	uniqueName := suffixString(suffix)
-	return prefix + "-" + uniqueName
-}
-
-func suffixString(s string) string {
-	const letter = "abcdefghijklmnopqrstuvwxyz"
-	b := make([]byte, 6)
-	for i := range b {
-		b[i] = letter[rand.Intn(len(letter))]
-	}
-	return fmt.Sprintf("%s-%s", s, string(b))
 }
 
 // configureEnv parses or sets env configs to work with both Elastic GO Agent and OTLP library

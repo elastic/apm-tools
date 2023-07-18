@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -57,15 +56,7 @@ type OTLPConfig struct {
 	ServiceName string
 }
 
-func getenvDefault(key, defaultVal string) string {
-	val := os.Getenv(key)
-	if val != "" {
-		return val
-	}
-	return defaultVal
-}
-
-func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, serviceName string) error {
+func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, serviceName string) error {
 	endpointURL, err := url.Parse(cfg.APMServerURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse endpoint: %w", err)
@@ -366,7 +357,7 @@ func (e loggingLogExporter) Export(ctx context.Context, logs plog.Logs) error {
 	return nil
 }
 
-func SetTracePropagator(ctx context.Context, traceparent string, tracestate string) context.Context {
+func SetOTLPTracePropagator(ctx context.Context, traceparent string, tracestate string) context.Context {
 	m := propagation.MapCarrier{}
 	m.Set("traceparent", traceparent)
 	m.Set("tracestate", tracestate)
