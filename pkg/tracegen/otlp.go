@@ -51,11 +51,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-type OTLPConfig struct {
-	Config,
-	ServiceName string
-}
-
 func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, serviceName string) error {
 	endpointURL, err := url.Parse(cfg.APMServerURL)
 	if err != nil {
@@ -90,7 +85,7 @@ func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, s
 	)
 	logExporter := chainLogExporter{loggingLogExporter{logger.Desugar()}, otlpExporters.log}
 	// generateSpans returns ctx that contains trace context
-	ctx, err = generateSpans(ctx, tracerProvider.Tracer("tracegen"), trace.TraceID(cfg.TraceID))
+	ctx, err = generateSpans(ctx, tracerProvider.Tracer("tracegen"))
 	if err != nil {
 		return err
 	}
@@ -105,7 +100,7 @@ func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, s
 	return otlpExporters.cleanup(ctx)
 }
 
-func generateSpans(ctx context.Context, tracer trace.Tracer, traceID trace.TraceID) (context.Context, error) {
+func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, error) {
 	ctx, parent := tracer.Start(ctx, "parent")
 	defer parent.End()
 
