@@ -22,8 +22,13 @@ import (
 )
 
 type Config struct {
-	SampleRate   float64
-	TraceID      apm.TraceID
-	OTLPProtocol string
-	Insecure     bool
+	SampleRate       float64
+	TraceID          apm.TraceID
+	OTLPProtocol     string
+	Insecure         bool
+	ElasticsearchURL string
+	Username         string
+	Password         string
+	APMServerURL     string
+	APIKey           string
 }

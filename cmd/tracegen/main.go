@@ -22,12 +22,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"math"
 	"math/rand"
 	"os"
 	"os/signal"
 
 	apmhttp "go.elastic.co/apm/module/apmhttp/v2"
-	"go.elastic.co/apm/v2"
+	apm "go.elastic.co/apm/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zapgrpc"
@@ -39,16 +41,29 @@ import (
 func main() {
 	var cfg tracegen.Config
 
+	flag.StringVar(&cfg.APMServerURL, "server", "", "set APM Server URL (env value ELASTIC_APM_SERVER_URL)")
+	flag.StringVar(&cfg.APIKey, "api-key", "", "set APM API key for auth (env value ELASTIC_APM_API_KEY)")
 	flag.Float64Var(&cfg.SampleRate, "sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
-	flag.StringVar(&cfg.OTLPProtocol, "protocol", "grpc", "set transport protocol to one of: grpc (default), http/protobuf")
+	flag.StringVar(&cfg.OTLPProtocol, "otlp-protocol", "grpc", "set OTLP transport protocol to one of: grpc (default), http/protobuf")
 	flag.BoolVar(&cfg.Insecure, "insecure", false, "skip the server's TLS certificate verification")
 	logLevel := zap.LevelFlag(
 		"loglevel", zapcore.InfoLevel,
 		"set log level to one of: DEBUG, INFO (default), WARN, ERROR, DPANIC, PANIC, FATAL",
 	)
-	flag.Parse()
 
-	// set logger for otlp
+	flag.Parse()
+	// get or set env values for GO agent and otel agent
+	err := configureEnv(&cfg)
+	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
+		log.Fatalf("invalid sample rate %f provided. allowed value: 0.0001 <= sample-rate <= 1.0", cfg.SampleRate)
+	}
+
+	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
+	if err != nil {
+		log.Fatalf("Invalid configuration: %v", err)
+	}
+
+	// set logger
 	zapcfg := zap.NewProductionConfig()
 	zapcfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
 	zapcfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
@@ -68,7 +83,7 @@ func main() {
 	}
 }
 
-func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger) error {
+func Main(ctx context.Context, cfg tracegen.Config, logger *zap.SugaredLogger) error {
 	// set up intake tracegen
 	tracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
 	if err != nil {
@@ -76,7 +91,7 @@ func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger)
 	}
 
 	cfg.TraceID = tracegen.NewRandomTraceID()
-	txCtx, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
+	txCtx, err := tracegen.IndexIntakeV2Trace(ctx, cfg, tracer, logger)
 	if err != nil {
 		return err
 	}
@@ -84,13 +99,14 @@ func Main(ctx context.Context, cfg tracegen.Config, otlogger *zap.SugaredLogger)
 	traceparent := apmhttp.FormatTraceparentHeader(txCtx)
 	tracestate := txCtx.State.String()
 	ctx = tracegen.SetTracePropagator(ctx, traceparent, tracestate)
-	return tracegen.IndexOTLPTrace(ctx, cfg, otlogger, getUniqueServiceName("service", "otlp"))
+	return tracegen.IndexOTLPTrace(ctx, cfg, logger, getUniqueServiceName("service", "otlp"))
 }
 
 func getUniqueServiceName(prefix string, suffix string) string {
 	uniqueName := suffixString(suffix)
 	return prefix + "-" + uniqueName
 }
+
 func suffixString(s string) string {
 	const letter = "abcdefghijklmnopqrstuvwxyz"
 	b := make([]byte, 6)
@@ -98,4 +114,25 @@ func suffixString(s string) string {
 		b[i] = letter[rand.Intn(len(letter))]
 	}
 	return fmt.Sprintf("%s-%s", s, string(b))
+}
+
+// configureEnv parses or sets env configs to work with both Elastic GO Agent and OTLP library
+func configureEnv(cfg *tracegen.Config) error {
+	// if API Key is not supplied by flags, get it from env
+	if cfg.APIKey == "" {
+		cfg.APIKey = os.Getenv("ELASTIC_APM_API_KEY")
+	}
+
+	if cfg.APMServerURL == "" {
+		cfg.APMServerURL = os.Getenv("ELASTIC_APM_SERVER_URL")
+	}
+
+	if cfg.APIKey == "" || cfg.APMServerURL == "" {
+		return errors.New("API Key and APM Server URL must be configured")
+	}
+	// to supply these to GO Agent
+	os.Setenv("ELASTIC_APM_API_KEY", cfg.APIKey)
+	os.Setenv("ELASTIC_APM_SERVER_URL", cfg.APMServerURL)
+
+	return nil
 }

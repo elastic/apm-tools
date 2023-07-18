@@ -23,19 +23,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"go.elastic.co/apm/v2"
+	"go.uber.org/zap"
 )
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) (apm.TraceContext, error) {
-	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
-		return apm.TraceContext{}, errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
-	}
-	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
-
+func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer, logger *zap.SugaredLogger) (apm.TraceContext, error) {
+	logger.Info("sample rate set to ", cfg.SampleRate)
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
 		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.SampleRate),

@@ -66,8 +66,7 @@ func getenvDefault(key, defaultVal string) string {
 }
 
 func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, serviceName string) error {
-	endpoint := getenvDefault("ELASTIC_APM_SERVER_URL", "http://localhost:8200")
-	endpointURL, err := url.Parse(endpoint)
+	endpointURL, err := url.Parse(cfg.APMServerURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse endpoint: %w", err)
 	}
@@ -117,8 +116,6 @@ func IndexOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, 
 
 func generateSpans(ctx context.Context, tracer trace.Tracer, traceID trace.TraceID) (context.Context, error) {
 	ctx, parent := tracer.Start(ctx, "parent")
-	// spanCtx := parent.SpanContext().WithTraceID(traceID)
-	// ctx = trace.ContextWithSpanContext(ctx, spanCtx)
 	defer parent.End()
 
 	_, child1 := tracer.Start(ctx, "child1")
@@ -144,7 +141,7 @@ func generateLogs(ctx context.Context, logger otlplogExporter, serviceName strin
 	)
 	sl := rl.ScopeLogs().AppendEmpty().LogRecords()
 	record := sl.AppendEmpty()
-	record.Body().SetStringVal("test record")
+	record.Body().SetStringVal("sample body value")
 	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
 	record.SetSeverityNumber(plog.SeverityNumberFATAL)
 	record.SetSeverityText("fatal")
@@ -190,14 +187,9 @@ func newOTLPGRPCExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 
 	traceOptions := []otlptracegrpc.Option{otlptracegrpc.WithGRPCConn(grpcConn)}
 	var logHeaders map[string]string
-	secretToken := getenvDefault("ELASTIC_APM_SECRET_TOKEN", "")
-	if secretToken != "" {
-		// If -secret-token is specified then we set headers explicitly,
-		// overriding anything set in $OTEL_EXPORTER_OTLP_HEADERS.
-		headers := map[string]string{"Authorization": "Bearer " + secretToken}
-		traceOptions = append(traceOptions, otlptracegrpc.WithHeaders(headers))
-		logHeaders = headers
-	}
+	headers := map[string]string{"Authorization": "ApiKey " + cfg.APIKey}
+	traceOptions = append(traceOptions, otlptracegrpc.WithHeaders(headers))
+	logHeaders = headers
 
 	otlpTraceExporter, err := otlptracegrpc.New(ctx, traceOptions...)
 	if err != nil {
@@ -226,13 +218,8 @@ func newOTLPHTTPExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 		traceOptions = append(traceOptions, otlptracehttp.WithInsecure())
 	}
 
-	secretToken := getenvDefault("ELASTIC_APM_SECRET_TOKEN", "")
-	if secretToken != "" {
-		// If -secret-token is specified then we set headers explicitly,
-		// overriding anything set in $OTEL_EXPORTER_OTLP_HEADERS.
-		headers := map[string]string{"Authorization": "Bearer " + secretToken}
-		traceOptions = append(traceOptions, otlptracehttp.WithHeaders(headers))
-	}
+	headers := map[string]string{"Authorization": "ApiKey " + cfg.APIKey}
+	traceOptions = append(traceOptions, otlptracehttp.WithHeaders(headers))
 
 	cleanup := func(context.Context) error { return nil }
 
