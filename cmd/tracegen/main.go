@@ -26,7 +26,7 @@ import (
 	"os"
 	"os/signal"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 	"go.uber.org/zap"
 
 	"github.com/elastic/apm-tools/pkg/tracegen"
