@@ -20,17 +20,15 @@ package tracegen
 import (
 	"encoding/binary"
 	"math/rand"
-	"time"
 
 	"go.elastic.co/apm/v2"
 )
 
 // newRandomTraceID returns randomly generated apm.TraceID
 // which is also compatible with otel's trace.TraceID
-func newRandomTraceID() apm.TraceID {
+func NewRandomTraceID() apm.TraceID {
 	var traceID apm.TraceID
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	binary.LittleEndian.PutUint64(traceID[:8], r.Uint64())
-	binary.LittleEndian.PutUint64(traceID[8:], r.Uint64())
+	binary.LittleEndian.PutUint64(traceID[:8], rand.Uint64())
+	binary.LittleEndian.PutUint64(traceID[8:], rand.Uint64())
 	return traceID
 }

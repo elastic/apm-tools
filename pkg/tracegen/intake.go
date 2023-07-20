@@ -26,12 +26,10 @@ import (
 	"time"
 
 	"go.elastic.co/apm/v2"
-	"go.uber.org/zap"
 )
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, logger *zap.SugaredLogger) (apm.TraceContext, error) {
-	logger.Info("sample rate set to ", cfg.SampleRate)
+func IndexIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
 		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.SampleRate),
@@ -51,7 +49,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, logger *zap.SugaredLogg
 		Parent: tx.TraceContext(),
 	})
 
-	exit := tx.StartSpanOptions("exit-span", "apmtool", apm.SpanOptions{
+	exit := tx.StartSpanOptions("exit-span", "db.apmtool", apm.SpanOptions{
 		Parent:   span.TraceContext(),
 		ExitSpan: true,
 	})

@@ -35,23 +35,17 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/instrumentation"
-	"go.opentelemetry.io/otel/sdk/metric/export"
-	"go.opentelemetry.io/otel/sdk/metric/export/aggregation"
-	"go.opentelemetry.io/otel/sdk/metric/sdkapi"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.8.0"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	grpcinsecure "google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
-func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, serviceName string) error {
+func SendOTLPTrace(ctx context.Context, cfg Config) error {
 	endpointURL, err := url.Parse(cfg.APMServerURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse endpoint: %w", err)
@@ -75,21 +69,18 @@ func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, s
 	}
 	defer otlpExporters.cleanup(ctx)
 
-	logger.Infof("sending OTLP data to %s (%s)", endpointURL.String(), cfg.OTLPProtocol)
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSyncer(loggingExporter{logger.Desugar()}),
 		sdktrace.WithSyncer(otlpExporters.trace),
 		sdktrace.WithResource(
-			resource.NewSchemaless(attribute.String("service.name", serviceName)),
+			resource.NewSchemaless(attribute.String("service.name", cfg.OTLPServiceName)),
 		),
 	)
-	logExporter := chainLogExporter{loggingLogExporter{logger.Desugar()}, otlpExporters.log}
 	// generateSpans returns ctx that contains trace context
 	ctx, err = generateSpans(ctx, tracerProvider.Tracer("tracegen"))
 	if err != nil {
 		return err
 	}
-	if err := generateLogs(ctx, logExporter, serviceName); err != nil {
+	if err := generateLogs(ctx, otlpExporters.log, cfg.OTLPServiceName); err != nil {
 		return err
 	}
 
@@ -101,7 +92,7 @@ func SendOTLPTrace(ctx context.Context, cfg Config, logger *zap.SugaredLogger, s
 }
 
 func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, error) {
-	ctx, parent := tracer.Start(ctx, "parent")
+	ctx, parent := tracer.Start(ctx, "parent", trace.WithSpanKind(trace.SpanKindServer))
 	defer parent.End()
 
 	_, child1 := tracer.Start(ctx, "child1")
@@ -232,73 +223,6 @@ func combineCleanup(a, b func(context.Context) error) func(context.Context) erro
 	}
 }
 
-type loggingExporter struct {
-	logger *zap.Logger
-}
-
-func (loggingExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-func (loggingExporter) MarshalLog() interface{} {
-	return "loggingExporter"
-}
-
-func (e loggingExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
-	for _, span := range tracetest.SpanStubsFromReadOnlySpans(spans) {
-		e.logger.Info("exporting span", zap.Any("span", span))
-	}
-	return nil
-}
-
-func (e loggingExporter) Export(ctx context.Context, resource *resource.Resource, r export.InstrumentationLibraryReader) error {
-	return r.ForEach(func(_ instrumentation.Library, mr export.Reader) error {
-		return mr.ForEach(e, func(record export.Record) error {
-			fields := []zap.Field{zap.Namespace("logs")}
-
-			desc := record.Descriptor()
-			fields = append(fields, zap.String("name", desc.Name()))
-			fields = append(fields, zap.String("kind", desc.InstrumentKind().String()))
-			if unit := desc.Unit(); unit != "" {
-				fields = append(fields, zap.String("unit", string(unit)))
-			}
-			fields = append(fields, zap.Time("start_time", record.StartTime()))
-			fields = append(fields, zap.Time("end_time", record.EndTime()))
-
-			agg := record.Aggregation()
-			if agg, ok := agg.(aggregation.Histogram); ok {
-				buckets, err := agg.Histogram()
-				if err != nil {
-					return err
-				}
-				fields = append(fields, zap.Float64s("boundaries", buckets.Boundaries))
-				fields = append(fields, zap.Uint64s("counts", buckets.Counts))
-			}
-			if agg, ok := agg.(aggregation.Sum); ok {
-				sum, err := agg.Sum()
-				if err != nil {
-					return err
-				}
-				fields = append(fields, zap.Float64("sum", sum.CoerceToFloat64(desc.NumberKind())))
-			}
-			if agg, ok := agg.(aggregation.Count); ok {
-				count, err := agg.Count()
-				if err != nil {
-					return err
-				}
-				fields = append(fields, zap.Uint64("count", count))
-			}
-
-			e.logger.Info("exporting logs", fields...)
-			return nil
-		})
-	})
-}
-
-func (loggingExporter) TemporalityFor(desc *sdkapi.Descriptor, kind aggregation.Kind) aggregation.Temporality {
-	return aggregation.StatelessTemporalitySelector().TemporalityFor(desc, kind)
-}
-
 type otlplogExporter interface {
 	Export(ctx context.Context, logs plog.Logs) error
 }
@@ -329,27 +253,7 @@ type otlploghttpExporter struct {
 
 func (e *otlploghttpExporter) Export(ctx context.Context, logs plog.Logs) error {
 	// TODO: implement
-	return nil
-}
-
-type chainLogExporter []otlplogExporter
-
-func (c chainLogExporter) Export(ctx context.Context, logs plog.Logs) error {
-	for _, exporter := range c {
-		if err := exporter.Export(ctx, logs); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type loggingLogExporter struct {
-	logger *zap.Logger
-}
-
-func (e loggingLogExporter) Export(ctx context.Context, logs plog.Logs) error {
-	e.logger.Info("exporting logs", zap.Int("count", logs.LogRecordCount()))
-	return nil
+	return errors.New("otlploghttpExporter isn't implemented")
 }
 
 func SetOTLPTracePropagator(ctx context.Context, traceparent string, tracestate string) context.Context {
