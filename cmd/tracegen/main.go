@@ -19,7 +19,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -28,36 +27,44 @@ import (
 	"os/signal"
 
 	"go.elastic.co/apm/v2"
+	"go.uber.org/zap"
 
 	"github.com/elastic/apm-tools/pkg/tracegen"
 )
 
 func main() {
-	var cfg tracegen.Config
-
-	flag.Float64Var(&cfg.SampleRate, "sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
+	serverURL := flag.String("server", "", "set APM Server URL (env value ELASTIC_APM_SERVER_URL)")
+	apiKey := flag.String("api-key", "", "set APM API key for auth (env value ELASTIC_APM_API_KEY)")
+	sr := flag.Float64("sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
+	insecure := flag.Bool("insecure", false, "sets agents to skip the server's TLS certificate verification")
+	protocol := flag.String("otlp-protocol", "grpc", "set OTLP transport protocol to one of: grpc (default), http/protobuf")
 	flag.Parse()
 
+	apmTracer, err := apm.NewTracer(newUniqueServiceName("service", "intake"), "0.0.1")
+	if err != nil {
+		log.Fatal("failed to instantiate apm tracer")
+	}
+
+	cfg := tracegen.NewConfig(
+		tracegen.WithAPMServerURL(*serverURL),
+		tracegen.WithAPIKey(*apiKey),
+		tracegen.WithSampleRate(*sr),
+		tracegen.WithInsecureConn(*insecure),
+		tracegen.WithElasticAPMTracer(apmTracer),
+		tracegen.WithOTLPProtocol(*protocol),
+		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
+	)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
-	if err := Main(ctx, cfg); err != nil {
-		log.Fatal(err)
+
+	if err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
+		log.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
 }
 
-func Main(ctx context.Context, cfg tracegen.Config) error {
-	uniqueName := suffixString("trace")
-	serviceName := "service-" + uniqueName
-	tracer, err := apm.NewTracer(serviceName, "0.0.1")
-	if err != nil {
-		return errors.New("failed to instantiate tracer")
-	}
-
-	cfg.TraceID = tracegen.NewRandomTraceID()
-	err = tracegen.IndexIntakeV2Trace(ctx, cfg, tracer)
-
-	// TODO: call otlp trace gen with given traceID
-	return err
+func newUniqueServiceName(prefix string, suffix string) string {
+	uniqueName := suffixString(suffix)
+	return prefix + "-" + uniqueName
 }
 
 func suffixString(s string) string {

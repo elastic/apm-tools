@@ -23,36 +23,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"go.elastic.co/apm/v2"
 )
 
-type Config struct {
-	SampleRate float64
-	TraceID    apm.TraceID
-}
-
-// IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) error {
-	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
-		return errors.New("invalid sample rate provided. allowed value: 0.0001 <= sample-rate <= 1.0")
+// SendIntakeV2Trace generate a trace including a transaction, a span and an error
+func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
+	var errs []error
+	if err := cfg.validate(); err != nil {
+		errs = append(errs, err)
 	}
-	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
-
+	if cfg.elasticAPMTracer == nil {
+		errs = append(
+			errs,
+			errors.New("elasticAPMTracer must be provided"),
+		)
+	}
+	if len(errs) > 0 {
+		return apm.TraceContext{}, errors.Join(errs...)
+	}
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
-		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.SampleRate),
+		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.sampleRate),
 	})
 
 	traceContext := apm.TraceContext{
-		Trace:   cfg.TraceID,
+		Trace:   cfg.traceID,
 		Options: apm.TraceOptions(0).WithRecorded(true),
 		State:   ts,
 	}
 
-	tx := tracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
+	tx := cfg.elasticAPMTracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
 		TraceContext: traceContext,
 	})
 
@@ -74,7 +76,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) err
 	exit.Outcome = "failure"
 
 	// error
-	e := tracer.NewError(errors.New("timeout"))
+	e := cfg.elasticAPMTracer.NewError(errors.New("timeout"))
 	e.Culprit = "timeout"
 	e.SetSpan(exit)
 	e.Send()
@@ -86,7 +88,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config, tracer *apm.Tracer) err
 	tx.Duration = 2 * time.Second
 	tx.Outcome = "success"
 	tx.End()
-	tracer.Flush(ctx.Done())
+	cfg.elasticAPMTracer.Flush(ctx.Done())
 
-	return nil
+	return tx.TraceContext(), nil
 }
