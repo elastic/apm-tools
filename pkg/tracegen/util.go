@@ -24,7 +24,7 @@ import (
 	"go.elastic.co/apm/v2"
 )
 
-// newRandomTraceID returns randomly generated apm.TraceID
+// NewRandomTraceID returns randomly generated apm.TraceID
 // which is also compatible with otel's trace.TraceID
 func NewRandomTraceID() apm.TraceID {
 	var traceID apm.TraceID

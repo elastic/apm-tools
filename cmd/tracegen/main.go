@@ -19,86 +19,53 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"os"
 	"os/signal"
 
-	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm"
 	"go.uber.org/zap"
 
 	"github.com/elastic/apm-tools/pkg/tracegen"
 )
 
 func main() {
-	cfg := tracegen.Config{
-		TraceID: tracegen.NewRandomTraceID(),
+	serverURL := flag.String("server", "", "set APM Server URL (env value ELASTIC_APM_SERVER_URL)")
+	apiKey := flag.String("api-key", "", "set APM API key for auth (env value ELASTIC_APM_API_KEY)")
+	sr := flag.Float64("sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
+	insecure := flag.Bool("insecure", false, "sets agents to skip the server's TLS certificate verification")
+	protocol := flag.String("otlp-protocol", "grpc", "set OTLP transport protocol to one of: grpc (default), http/protobuf")
+	flag.Parse()
+
+	apmTracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
+	if err != nil {
+		log.Fatal("failed to instantiate apm tracer")
 	}
 
-	flag.StringVar(&cfg.APMServerURL, "server", "", "set APM Server URL (env value ELASTIC_APM_SERVER_URL)")
-	flag.StringVar(&cfg.APIKey, "api-key", "", "set APM API key for auth (env value ELASTIC_APM_API_KEY)")
-	flag.Float64Var(&cfg.SampleRate, "sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
-	flag.StringVar(&cfg.OTLPProtocol, "otlp-protocol", "grpc", "set OTLP transport protocol to one of: grpc (default), http/protobuf")
-	flag.BoolVar(&cfg.Insecure, "insecure", false, "skip the server's TLS certificate verification")
+	cfg := tracegen.NewConfig(
+		tracegen.WithAPMServerURL(*serverURL),
+		tracegen.WithAPIKey(*apiKey),
+		tracegen.WithSampleRate(*sr),
+		tracegen.WithInsecureConn(*insecure),
+		tracegen.WithElasticAPMTracer(apmTracer),
+		tracegen.WithOTLPProtocol(*protocol),
+		tracegen.WithOTLPServiceName(getUniqueServiceName("service", "otlp")),
+	)
 
-	flag.Parse()
-	// get or set env values for GO agent and otel agent
-	err := configureEnv(&cfg)
+	err = cfg.Validate()
 	if err != nil {
 		log.Fatalf("Invalid configuration: %v", err)
 	}
 
-	if cfg.SampleRate < 0.0001 || cfg.SampleRate > 1.0 {
-		log.Fatalf("invalid sample rate %f provided. allowed value: 0.0001 <= sample-rate <= 1.0", cfg.SampleRate)
-	}
-	cfg.SampleRate = math.Round(cfg.SampleRate*10000) / 10000
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	if err := Main(ctx, cfg); err != nil {
+	if err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
 		log.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
-}
-
-func Main(ctx context.Context, cfg tracegen.Config) error {
-	apmTracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
-	if err != nil {
-		return errors.New("failed to instantiate apm tracer")
-	}
-
-	cfg.ElasticAPMTracer = apmTracer
-	cfg.OTLPServiceName = getUniqueServiceName("service", "otlp")
-
-	return tracegen.SendDistributedTrace(ctx, cfg)
-}
-
-// configureEnv parses or sets env configs to work with both Elastic GO Agent and OTLP library
-func configureEnv(cfg *tracegen.Config) error {
-	if cfg.APIKey == "" {
-		cfg.APIKey = os.Getenv("ELASTIC_APM_API_KEY")
-	} else {
-		os.Setenv("ELASTIC_APM_API_KEY", cfg.APIKey)
-	}
-
-	if cfg.APMServerURL == "" {
-		cfg.APMServerURL = os.Getenv("ELASTIC_APM_SERVER_URL")
-	} else {
-		os.Setenv("ELASTIC_APM_SERVER_URL", cfg.APMServerURL)
-	}
-
-	if cfg.APIKey == "" || cfg.APMServerURL == "" {
-		return errors.New("both API Key and APM Server URL must be configured")
-	}
-
-	if cfg.Insecure {
-		os.Setenv("ELASTIC_APM_VERIFY_SERVER_CERT", "false")
-	}
-	return nil
 }
 
 func getUniqueServiceName(prefix string, suffix string) string {

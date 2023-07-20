@@ -18,20 +18,135 @@
 package tracegen
 
 import (
+	"errors"
+	"fmt"
+	"math"
+	"os"
+
 	"go.elastic.co/apm/v2"
 )
 
+type ConfigOption func(Config) Config
 type Config struct {
-	SampleRate       float64
-	TraceID          apm.TraceID
-	OTLPProtocol     string
-	Insecure         bool
-	ElasticsearchURL string
-	Username         string
-	Password         string
-	APMServerURL     string
-	APIKey           string
+	apmServerURL string
+	apiKey       string
+	sampleRate   float64
+	traceID      apm.TraceID
+	insecure     bool
 
-	ElasticAPMTracer *apm.Tracer
-	OTLPServiceName  string
+	elasticAPMTracer *apm.Tracer
+
+	otlpServiceName string
+	otlpProtocol    string
+}
+
+func NewConfig(opts ...ConfigOption) Config {
+	cfg := Config{
+		sampleRate:   1.0,
+		traceID:      NewRandomTraceID(),
+		insecure:     false,
+		otlpProtocol: "grpc",
+	}
+	for _, opt := range opts {
+		cfg = opt(cfg)
+	}
+
+	cfg.configureEnv()
+
+	return cfg
+}
+
+// WithSampleRate specifies the sample rate for the APM GO Agent
+func WithSampleRate(r float64) ConfigOption {
+	return func(c Config) Config {
+		c.sampleRate = math.Round(r*10000) / 10000
+		return c
+	}
+}
+
+// WithAPMServerURL set APM Server URL (env value ELASTIC_APM_SERVER_URL)
+func WithAPMServerURL(a string) ConfigOption {
+	return func(c Config) Config {
+		c.apmServerURL = a
+		return c
+	}
+}
+
+// WithAPIKey sets auth apiKey to communicate with APM Server
+func WithAPIKey(k string) ConfigOption {
+	return func(c Config) Config {
+		c.apiKey = k
+		return c
+	}
+}
+
+// WithTraceID specifies the user defined traceID
+func WithTraceID(t apm.TraceID) ConfigOption {
+	return func(c Config) Config {
+		c.traceID = t
+		return c
+	}
+}
+
+// WithInsecureConn skip the server's TLS certificate verification
+func WithInsecureConn(b bool) ConfigOption {
+	return func(c Config) Config {
+		c.insecure = b
+		return c
+	}
+}
+
+// WithElasticAPMTracer sets tracer for the elastic GO Agent
+func WithElasticAPMTracer(t *apm.Tracer) ConfigOption {
+	return func(c Config) Config {
+		c.elasticAPMTracer = t
+		return c
+	}
+}
+
+// WithOTLPServiceName specifies the service name that otlp will use
+func WithOTLPServiceName(s string) ConfigOption {
+	return func(c Config) Config {
+		c.otlpServiceName = s
+		return c
+	}
+}
+
+// WithOTLPProtocol specifies OTLP transport protocol to one of: grpc (default), http/protobuf"
+func WithOTLPProtocol(p string) ConfigOption {
+	return func(c Config) Config {
+		c.otlpProtocol = p
+		return c
+	}
+}
+
+func (cfg Config) Validate() error {
+	if cfg.sampleRate < 0.0001 || cfg.sampleRate > 1.0 {
+		return fmt.Errorf("invalid sample rate %f provided. allowed value: 0.0001 <= sample-rate <= 1.0", cfg.sampleRate)
+	}
+
+	if cfg.apiKey == "" || cfg.apmServerURL == "" {
+		return errors.New("both API Key and APM Server URL must be configured")
+	}
+	return nil
+}
+
+// configureEnv parses or sets env configs to work with both Elastic GO Agent and OTLP library
+func (cfg *Config) configureEnv() error {
+	if cfg.apiKey == "" {
+		cfg.apiKey = os.Getenv("ELASTIC_APM_API_KEY")
+	} else {
+		os.Setenv("ELASTIC_APM_API_KEY", cfg.apiKey)
+	}
+
+	if cfg.apmServerURL == "" {
+		cfg.apmServerURL = os.Getenv("ELASTIC_APM_SERVER_URL")
+	} else {
+		os.Setenv("ELASTIC_APM_SERVER_URL", cfg.apmServerURL)
+	}
+
+	if cfg.insecure {
+		os.Setenv("ELASTIC_APM_VERIFY_SERVER_CERT", "false")
+	}
+	return nil
 }

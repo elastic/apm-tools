@@ -30,18 +30,21 @@ import (
 
 // IndexIntakeV2Trace generate a trace including a transaction, a span and an error
 func IndexIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
+	if cfg.elasticAPMTracer == nil {
+		return apm.TraceContext{}, errors.New("elasticAPMTracer is missing")
+	}
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
-		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.SampleRate),
+		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.sampleRate),
 	})
 
 	traceContext := apm.TraceContext{
-		Trace:   cfg.TraceID,
+		Trace:   cfg.traceID,
 		Options: apm.TraceOptions(0).WithRecorded(true),
 		State:   ts,
 	}
 
-	tx := cfg.ElasticAPMTracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
+	tx := cfg.elasticAPMTracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
 		TraceContext: traceContext,
 	})
 
@@ -49,7 +52,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, erro
 		Parent: tx.TraceContext(),
 	})
 
-	exit := tx.StartSpanOptions("exit-span", "db.apmtool", apm.SpanOptions{
+	exit := tx.StartSpanOptions("exit-span", "apmtool", apm.SpanOptions{
 		Parent:   span.TraceContext(),
 		ExitSpan: true,
 	})
@@ -63,7 +66,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, erro
 	exit.Outcome = "failure"
 
 	// error
-	e := cfg.ElasticAPMTracer.NewError(errors.New("timeout"))
+	e := cfg.elasticAPMTracer.NewError(errors.New("timeout"))
 	e.Culprit = "timeout"
 	e.SetSpan(exit)
 	e.Send()
@@ -75,7 +78,7 @@ func IndexIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, erro
 	tx.Duration = 2 * time.Second
 	tx.Outcome = "success"
 	tx.End()
-	cfg.ElasticAPMTracer.Flush(ctx.Done())
+	cfg.elasticAPMTracer.Flush(ctx.Done())
 
 	return tx.TraceContext(), nil
 }

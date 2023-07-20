@@ -46,7 +46,7 @@ import (
 )
 
 func SendOTLPTrace(ctx context.Context, cfg Config) error {
-	endpointURL, err := url.Parse(cfg.APMServerURL)
+	endpointURL, err := url.Parse(cfg.apmServerURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse endpoint: %w", err)
 	}
@@ -72,7 +72,7 @@ func SendOTLPTrace(ctx context.Context, cfg Config) error {
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSyncer(otlpExporters.trace),
 		sdktrace.WithResource(
-			resource.NewSchemaless(attribute.String("service.name", cfg.OTLPServiceName)),
+			resource.NewSchemaless(attribute.String("service.name", cfg.otlpServiceName)),
 		),
 	)
 	// generateSpans returns ctx that contains trace context
@@ -80,7 +80,7 @@ func SendOTLPTrace(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := generateLogs(ctx, otlpExporters.log, cfg.OTLPServiceName); err != nil {
+	if err := generateLogs(ctx, otlpExporters.log, cfg.otlpServiceName); err != nil {
 		return err
 	}
 
@@ -133,13 +133,13 @@ type otlpExporters struct {
 }
 
 func newOTLPExporters(ctx context.Context, endpointURL *url.URL, cfg Config) (*otlpExporters, error) {
-	switch cfg.OTLPProtocol {
+	switch cfg.otlpProtocol {
 	case "grpc":
 		return newOTLPGRPCExporters(ctx, endpointURL, cfg)
 	case "http/protobuf":
 		return newOTLPHTTPExporters(ctx, endpointURL, cfg)
 	default:
-		return nil, fmt.Errorf("invalid protocol %q", cfg.OTLPProtocol)
+		return nil, fmt.Errorf("invalid protocol %q", cfg.otlpProtocol)
 	}
 }
 
@@ -151,7 +151,7 @@ func newOTLPGRPCExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 		// If http:// is specified, then use insecure (plaintext).
 		transportCredentials = grpcinsecure.NewCredentials()
 	case "https":
-		transportCredentials = credentials.NewTLS(&tls.Config{InsecureSkipVerify: cfg.Insecure})
+		transportCredentials = credentials.NewTLS(&tls.Config{InsecureSkipVerify: cfg.insecure})
 	}
 
 	grpcConn, err := grpc.DialContext(ctx, endpointURL.Host, grpc.WithTransportCredentials(transportCredentials))
@@ -164,7 +164,7 @@ func newOTLPGRPCExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 
 	traceOptions := []otlptracegrpc.Option{otlptracegrpc.WithGRPCConn(grpcConn)}
 	var logHeaders map[string]string
-	headers := map[string]string{"Authorization": "ApiKey " + cfg.APIKey}
+	headers := map[string]string{"Authorization": "ApiKey " + cfg.apiKey}
 	traceOptions = append(traceOptions, otlptracegrpc.WithHeaders(headers))
 	logHeaders = headers
 
@@ -186,7 +186,7 @@ func newOTLPGRPCExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 }
 
 func newOTLPHTTPExporters(ctx context.Context, endpointURL *url.URL, cfg Config) (*otlpExporters, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: cfg.Insecure}
+	tlsConfig := &tls.Config{InsecureSkipVerify: cfg.insecure}
 	traceOptions := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint(endpointURL.Host),
 		otlptracehttp.WithTLSClientConfig(tlsConfig),
@@ -195,7 +195,7 @@ func newOTLPHTTPExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 		traceOptions = append(traceOptions, otlptracehttp.WithInsecure())
 	}
 
-	headers := map[string]string{"Authorization": "ApiKey " + cfg.APIKey}
+	headers := map[string]string{"Authorization": "ApiKey " + cfg.apiKey}
 	traceOptions = append(traceOptions, otlptracehttp.WithHeaders(headers))
 
 	cleanup := func(context.Context) error { return nil }
