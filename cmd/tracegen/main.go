@@ -40,7 +40,7 @@ func main() {
 	protocol := flag.String("otlp-protocol", "grpc", "set OTLP transport protocol to one of: grpc (default), http/protobuf")
 	flag.Parse()
 
-	apmTracer, err := apm.NewTracer(getUniqueServiceName("service", "intake"), "0.0.1")
+	apmTracer, err := apm.NewTracer(newUniqueServiceName("service", "intake"), "0.0.1")
 	if err != nil {
 		log.Fatal("failed to instantiate apm tracer")
 	}
@@ -52,7 +52,7 @@ func main() {
 		tracegen.WithInsecureConn(*insecure),
 		tracegen.WithElasticAPMTracer(apmTracer),
 		tracegen.WithOTLPProtocol(*protocol),
-		tracegen.WithOTLPServiceName(getUniqueServiceName("service", "otlp")),
+		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
 	)
 
 	err = cfg.Validate()
@@ -68,7 +68,7 @@ func main() {
 	}
 }
 
-func getUniqueServiceName(prefix string, suffix string) string {
+func newUniqueServiceName(prefix string, suffix string) string {
 	uniqueName := suffixString(suffix)
 	return prefix + "-" + uniqueName
 }

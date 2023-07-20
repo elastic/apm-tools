@@ -97,6 +97,7 @@ func WithInsecureConn(b bool) ConfigOption {
 }
 
 // WithElasticAPMTracer sets tracer for the elastic GO Agent
+// this config will be ignored when using SendOTLPTrace
 func WithElasticAPMTracer(t *apm.Tracer) ConfigOption {
 	return func(c Config) Config {
 		c.elasticAPMTracer = t
@@ -105,6 +106,7 @@ func WithElasticAPMTracer(t *apm.Tracer) ConfigOption {
 }
 
 // WithOTLPServiceName specifies the service name that otlp will use
+// this config will be ignored when using SendIntakeV2Trace
 func WithOTLPServiceName(s string) ConfigOption {
 	return func(c Config) Config {
 		c.otlpServiceName = s
@@ -113,6 +115,7 @@ func WithOTLPServiceName(s string) ConfigOption {
 }
 
 // WithOTLPProtocol specifies OTLP transport protocol to one of: grpc (default), http/protobuf"
+// this config will be ignored when using SendIntakeV2Trace
 func WithOTLPProtocol(p string) ConfigOption {
 	return func(c Config) Config {
 		c.otlpProtocol = p

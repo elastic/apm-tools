@@ -28,8 +28,8 @@ import (
 	"go.elastic.co/apm/v2"
 )
 
-// IndexIntakeV2Trace generate a trace including a transaction, a span and an error
-func IndexIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
+// SendIntakeV2Trace generate a trace including a transaction, a span and an error
+func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
 	if cfg.elasticAPMTracer == nil {
 		return apm.TraceContext{}, errors.New("elasticAPMTracer is missing")
 	}
