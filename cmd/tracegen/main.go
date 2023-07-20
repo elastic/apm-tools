@@ -57,7 +57,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	if err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
+	if _, err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
 		log.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
 }
