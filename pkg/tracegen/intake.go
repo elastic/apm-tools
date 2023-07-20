@@ -31,8 +31,7 @@ import (
 // SendIntakeV2Trace generate a trace including a transaction, a span and an error
 func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
 	var errs []error
-	err := cfg.validate()
-	if err != nil {
+	if err := cfg.validate(); err != nil {
 		errs = append(errs, err)
 	}
 	if cfg.elasticAPMTracer == nil {
@@ -41,7 +40,7 @@ func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error
 			errors.New("elasticAPMTracer must be provided"),
 		)
 	}
-	if len(errs) != 0 {
+	if len(errs) > 0 {
 		return apm.TraceContext{}, errors.Join(errs...)
 	}
 	// set sample rate
