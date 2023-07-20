@@ -26,7 +26,7 @@ import (
 	"go.elastic.co/apm/v2"
 )
 
-type ConfigOption func(Config) Config
+type ConfigOption func(*Config)
 type Config struct {
 	apmServerURL string
 	apiKey       string
@@ -48,7 +48,7 @@ func NewConfig(opts ...ConfigOption) Config {
 		otlpProtocol: "grpc",
 	}
 	for _, opt := range opts {
-		cfg = opt(cfg)
+		opt(&cfg)
 	}
 
 	cfg.configureEnv()
@@ -58,80 +58,74 @@ func NewConfig(opts ...ConfigOption) Config {
 
 // WithSampleRate specifies the sample rate for the APM GO Agent
 func WithSampleRate(r float64) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.sampleRate = math.Round(r*10000) / 10000
-		return c
 	}
 }
 
 // WithAPMServerURL set APM Server URL (env value ELASTIC_APM_SERVER_URL)
 func WithAPMServerURL(a string) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.apmServerURL = a
-		return c
 	}
 }
 
 // WithAPIKey sets auth apiKey to communicate with APM Server
 func WithAPIKey(k string) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.apiKey = k
-		return c
 	}
 }
 
 // WithTraceID specifies the user defined traceID
 func WithTraceID(t apm.TraceID) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.traceID = t
-		return c
 	}
 }
 
 // WithInsecureConn skip the server's TLS certificate verification
 func WithInsecureConn(b bool) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.insecure = b
-		return c
 	}
 }
 
 // WithElasticAPMTracer sets tracer for the elastic GO Agent
 // this config will be ignored when using SendOTLPTrace
 func WithElasticAPMTracer(t *apm.Tracer) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.elasticAPMTracer = t
-		return c
 	}
 }
 
 // WithOTLPServiceName specifies the service name that otlp will use
 // this config will be ignored when using SendIntakeV2Trace
 func WithOTLPServiceName(s string) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.otlpServiceName = s
-		return c
 	}
 }
 
 // WithOTLPProtocol specifies OTLP transport protocol to one of: grpc (default), http/protobuf"
 // this config will be ignored when using SendIntakeV2Trace
 func WithOTLPProtocol(p string) ConfigOption {
-	return func(c Config) Config {
+	return func(c *Config) {
 		c.otlpProtocol = p
-		return c
 	}
 }
 
-func (cfg Config) Validate() error {
+func (cfg Config) validate() error {
+	var errs []error
 	if cfg.sampleRate < 0.0001 || cfg.sampleRate > 1.0 {
-		return fmt.Errorf("invalid sample rate %f provided. allowed value: 0.0001 <= sample-rate <= 1.0", cfg.sampleRate)
+		errs = append(errs,
+			fmt.Errorf("invalid sample rate %f provided. allowed value: 0.0001 <= sample-rate <= 1.0", cfg.sampleRate),
+		)
 	}
-
 	if cfg.apiKey == "" || cfg.apmServerURL == "" {
-		return errors.New("both API Key and APM Server URL must be configured")
+		errs = append(errs, errors.New("both API Key and APM Server URL must be configured"))
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // configureEnv parses or sets env configs to work with both Elastic GO Agent and OTLP library

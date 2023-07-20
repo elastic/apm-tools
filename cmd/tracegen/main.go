@@ -54,12 +54,6 @@ func main() {
 		tracegen.WithOTLPProtocol(*protocol),
 		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
 	)
-
-	err = cfg.Validate()
-	if err != nil {
-		log.Fatalf("Invalid configuration: %v", err)
-	}
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 

@@ -45,7 +45,15 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// SendOTLPTrace sends spans, error and logs to the configured APM Server
+// If distributed tracing is needed, you might want to set up the propagator
+// using SetOTLPTracePropagator function before calling this function
 func SendOTLPTrace(ctx context.Context, cfg Config) error {
+	err := cfg.validate()
+	if err != nil {
+		return err
+	}
+
 	endpointURL, err := url.Parse(cfg.apmServerURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse endpoint: %w", err)
