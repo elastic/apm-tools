@@ -122,8 +122,12 @@ func (cfg Config) validate() error {
 			fmt.Errorf("invalid sample rate %f provided. allowed value: 0.0001 <= sample-rate <= 1.0", cfg.sampleRate),
 		)
 	}
-	if cfg.apiKey == "" || cfg.apmServerURL == "" {
-		errs = append(errs, errors.New("both API Key and APM Server URL must be configured"))
+	if cfg.apmServerURL == "" {
+		errs = append(errs, errors.New("APM Server URL must be configured"))
+	}
+
+	if cfg.apiKey == "" {
+		errs = append(errs, errors.New("API Key must be configured"))
 	}
 	return errors.Join(errs...)
 }

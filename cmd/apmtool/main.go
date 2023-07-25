@@ -136,27 +136,27 @@ func (cmd *Commands) getCredentials(c *cli.Context) (*credentials, error) {
 	// API Key.
 	var apiKey, secretToken string
 	policy, err := client.GetElasticCloudAPMInput(c.Context)
+	policyErr := fmt.Errorf("error getting APM cloud input: %w", err)
 	if err != nil {
-		policyErr := fmt.Errorf("error getting APM cloud input: %w", err)
 		if c.Bool("verbose") {
 			fmt.Fprintln(os.Stderr, policyErr)
 		}
-		// Create an API Key.
-		fmt.Fprintln(os.Stderr, "Creating agent API Key...")
-		expiryDuration := c.Duration("api-key-expiration")
-		if expiryDuration > 0 {
-			expiry = time.Now().Add(expiryDuration)
-		}
-		apiKey, err = client.CreateAgentAPIKey(c.Context, expiryDuration)
-		if err != nil {
-			apiKeyErr := err
-			return nil, fmt.Errorf(
-				"failed to obtain agent credentials: %w",
-				errors.Join(apiKeyErr, policyErr),
-			)
-		}
 	} else {
 		secretToken = policy.Get("apm-server.auth.secret_token").String()
+	}
+	// Create an API Key.
+	fmt.Fprintln(os.Stderr, "Creating agent API Key...")
+	expiryDuration := c.Duration("api-key-expiration")
+	if expiryDuration > 0 {
+		expiry = time.Now().Add(expiryDuration)
+	}
+	apiKey, err = client.CreateAgentAPIKey(c.Context, expiryDuration)
+	if err != nil {
+		apiKeyErr := err
+		return nil, fmt.Errorf(
+			"failed to obtain agent credentials: %w",
+			errors.Join(apiKeyErr, policyErr),
+		)
 	}
 	creds = &credentials{
 		Expiry:      expiry,
@@ -352,7 +352,8 @@ func main() {
 			Name:   "list-services",
 			Usage:  "list APM services",
 			Action: commands.servicesCommand,
-		}},
+		}, NewTraceGenCmd(commands),
+		},
 	}
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
