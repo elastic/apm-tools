@@ -19,9 +19,12 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/urfave/cli/v3"
 )
 
 type credentials struct {
@@ -71,4 +74,56 @@ func updateCachedCredentials(url string, c *credentials) error {
 		return fmt.Errorf("error updating cached credentials: %w", err)
 	}
 	return nil
+}
+
+func (cmd *Commands) getCredentials(c *cli.Context) (*credentials, error) {
+	creds, err := readCachedCredentials(cmd.cfg.APMServerURL)
+	if err == nil {
+		return creds, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	client, err := cmd.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	var expiry time.Time
+	// First check if there's an Elastic Cloud integration policy,
+	// and extract a secret token from that. Otherwise, create an
+	// API Key.
+	var apiKey, secretToken string
+	policy, err := client.GetElasticCloudAPMInput(c.Context)
+	policyErr := fmt.Errorf("error getting APM cloud input: %w", err)
+	if err != nil {
+		if c.Bool("verbose") {
+			fmt.Fprintln(os.Stderr, policyErr)
+		}
+	} else {
+		secretToken = policy.Get("apm-server.auth.secret_token").String()
+	}
+	// Create an API Key.
+	fmt.Fprintln(os.Stderr, "Creating agent API Key...")
+	expiryDuration := c.Duration("api-key-expiration")
+	if expiryDuration > 0 {
+		expiry = time.Now().Add(expiryDuration)
+	}
+	apiKey, err = client.CreateAgentAPIKey(c.Context, expiryDuration)
+	if err != nil {
+		apiKeyErr := err
+		return nil, fmt.Errorf(
+			"failed to obtain agent credentials: %w",
+			errors.Join(apiKeyErr, policyErr),
+		)
+	}
+	creds = &credentials{
+		Expiry:      expiry,
+		APIKey:      apiKey,
+		SecretToken: secretToken,
+	}
+	if err := updateCachedCredentials(cmd.cfg.APMServerURL, creds); err != nil {
+		return nil, err
+	}
+	return creds, nil
 }

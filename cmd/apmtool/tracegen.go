@@ -19,7 +19,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -29,29 +28,27 @@ import (
 	"go.elastic.co/apm/v2"
 	"go.uber.org/zap"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/elastic/apm-tools/pkg/tracegen"
 )
 
-func main() {
-	serverURL := flag.String("server", "", "set APM Server URL (env value ELASTIC_APM_SERVER_URL)")
-	apiKey := flag.String("api-key", "", "set APM API key for auth (env value ELASTIC_APM_API_KEY)")
-	sr := flag.Float64("sample-rate", 1.0, "set the sample rate. allowed value: min: 0.0001, max: 1.000")
-	insecure := flag.Bool("insecure", false, "sets agents to skip the server's TLS certificate verification")
-	protocol := flag.String("otlp-protocol", "grpc", "set OTLP transport protocol to one of: grpc (default), http/protobuf")
-	flag.Parse()
-
+func (cmd *Commands) sendTrace(c *cli.Context) error {
+	creds, err := cmd.getCredentials(c)
+	if err != nil {
+		return err
+	}
 	apmTracer, err := apm.NewTracer(newUniqueServiceName("service", "intake"), "0.0.1")
 	if err != nil {
 		log.Fatal("failed to instantiate apm tracer")
 	}
-
 	cfg := tracegen.NewConfig(
-		tracegen.WithAPMServerURL(*serverURL),
-		tracegen.WithAPIKey(*apiKey),
-		tracegen.WithSampleRate(*sr),
-		tracegen.WithInsecureConn(*insecure),
+		tracegen.WithAPMServerURL(cmd.cfg.APMServerURL),
+		tracegen.WithAPIKey(creds.APIKey),
+		tracegen.WithSampleRate(c.Float64("sample-rate")),
+		tracegen.WithInsecureConn(c.Bool("insecure")),
 		tracegen.WithElasticAPMTracer(apmTracer),
-		tracegen.WithOTLPProtocol(*protocol),
+		tracegen.WithOTLPProtocol(c.String("otlp-protocol")),
 		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
 	)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
@@ -60,6 +57,7 @@ func main() {
 	if err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
 		log.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
+	return nil
 }
 
 func newUniqueServiceName(prefix string, suffix string) string {
@@ -74,4 +72,30 @@ func suffixString(s string) string {
 		b[i] = letter[rand.Intn(len(letter))]
 	}
 	return fmt.Sprintf("%s-%s", s, string(b))
+}
+
+// NewTraceGenCmd returns pointer to a Command that generates distributed tracing data using go-agent and otel library
+func NewTraceGenCmd(commands *Commands) *cli.Command {
+	return &cli.Command{
+		Name:   "generate-trace",
+		Usage:  "generate distributed tracing data using go-agent and otel library",
+		Action: commands.sendTrace,
+		Flags: []cli.Flag{
+			&cli.Float64Flag{
+				Name:  "sample-rate",
+				Usage: "set the sample rate. allowed value: min: 0.0001, max: 1.000",
+				Value: 1.0,
+			},
+			&cli.BoolFlag{
+				Name:  "insecure",
+				Usage: "sets agents to skip the server's TLS certificate verification",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  "otlp-protocol",
+				Usage: "set OTLP transport protocol to one of: grpc (default), http/protobuf",
+				Value: "grpc",
+			},
+		},
+	}
 }

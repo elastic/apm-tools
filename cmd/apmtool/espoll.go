@@ -22,7 +22,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -32,15 +31,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/elastic/apm-tools/pkg/espoll"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-const (
-	adminElasticsearchUser  = "admin"
-	adminElasticsearchPass  = "changeme"
-	maxElasticsearchBackoff = 10 * time.Second
-)
+var maxElasticsearchBackoff = 10 * time.Second
 
 type config struct {
 	query      string
@@ -53,32 +50,19 @@ type config struct {
 	hits    uint
 }
 
-func main() {
-	var cfg config
-	flag.StringVar(&cfg.query, "query", "", "The Elasticsearch query in Query DSL. Must be set via this flag or stdin.")
-	flag.StringVar(&cfg.target, "target", "traces-*,logs-*,metrics-*",
-		"Comma-separated list of data streams, indices, and aliases to search (Supports wildcards (*)).",
-	)
-	flag.DurationVar(&cfg.timeout, "timeout", 30*time.Second,
-		"Elasticsearch request timeout",
-	)
-	flag.UintVar(&cfg.hits, "min-hits", 1,
-		"When specified and > 10, this should cause the size parameter to be set.",
-	)
+func (cmd *Commands) pollDocs(c *cli.Context) error {
+	cfg := config{
+		query:      c.String("query"),
+		esURL:      cmd.cfg.ElasticsearchURL,
+		esUsername: cmd.cfg.Username,
+		esPassword: cmd.cfg.Password,
 
-	// Elasticsearch
-	flag.StringVar(&cfg.esUsername, "elasticsearch-user", adminElasticsearchUser,
-		"Elasticsearch username.",
-	)
-	flag.StringVar(&cfg.esPassword, "elasticsearch-pass", adminElasticsearchPass,
-		"Elasticsearch password.",
-	)
-	flag.StringVar(&cfg.esURL, "elasticsearch-url", os.Getenv("ELASTICSEARCH_URL"),
-		"Elasticsearch URL.",
-	)
-	flag.Parse()
-
-	if cfg.query == "" {
+		target:  c.String("target"),
+		timeout: c.Duration("timeout"),
+		hits:    c.Uint("min-hits"),
+	}
+	query := c.String("query")
+	if query == "" {
 		stat, err := os.Stdin.Stat()
 		if err != nil {
 			log.Fatalf("failed to stat stdin: %s", err.Error())
@@ -86,20 +70,53 @@ func main() {
 		if stat.Size() == 0 {
 			log.Fatal("empty -query flag and stdin, please set one.")
 		}
+
 		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			log.Fatalf("failed to read stdin: %s", err.Error())
 		}
-		cfg.query = string(strings.Trim(string(b), "\n"))
+		query = string(strings.Trim(string(b), "\n"))
 	}
 
-	log.Println("query:", cfg.query)
+	log.Println("query:", query)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()
 
 	if err := Main(ctx, cfg); err != nil {
 		log.Fatalf("ERROR: %s", err.Error())
+	}
+
+	return nil
+}
+
+// NewESPollCmd returns pointer to Command that queries documents from Elasticsearch
+func NewESPollCmd(commands *Commands) *cli.Command {
+	return &cli.Command{
+		Name:   "espoll",
+		Usage:  "poll documents from Elasticsearch",
+		Action: commands.pollDocs,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "query",
+				Usage: "The Elasticsearch query in Query DSL. Must be set via this flag or stdin.",
+			},
+			&cli.StringFlag{
+				Name:  "target",
+				Value: "traces-*,logs-*,metrics-*",
+				Usage: "Comma-separated list of data streams, indices, and aliases to search (Supports wildcards (*)).",
+			},
+			&cli.DurationFlag{
+				Name:  "timeout",
+				Value: 30 * time.Second,
+				Usage: "Elasticsearch request timeout",
+			},
+			&cli.UintFlag{
+				Name:  "min-hits",
+				Value: 1,
+				Usage: "When specified and > 10, this should cause the size parameter to be set.",
+			},
+		},
 	}
 }
 
