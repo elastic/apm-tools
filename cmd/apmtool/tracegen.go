@@ -74,10 +74,11 @@ func suffixString(s string) string {
 	return fmt.Sprintf("%s-%s", s, string(b))
 }
 
+// NewTraceGenCmd returns pointer to a Command that generates distributed tracing data using go-agent and otel library
 func NewTraceGenCmd(commands *Commands) *cli.Command {
 	return &cli.Command{
 		Name:   "tracegen",
-		Usage:  "generate distributed tracing data using go-agent and otel library",
+		Usage:  "",
 		Action: commands.sendTrace,
 		Flags: []cli.Flag{
 			&cli.Float64Flag{

@@ -89,6 +89,7 @@ func (cmd *Commands) pollDocs(c *cli.Context) error {
 	return nil
 }
 
+// NewESPollCmd returns pointer to Command that queries documents from Elasticsearch
 func NewESPollCmd(commands *Commands) *cli.Command {
 	return &cli.Command{
 		Name:   "espoll",
