@@ -128,9 +128,8 @@ func Main(ctx context.Context, cfg config) error {
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	client, err := elasticsearch.NewClient(elasticsearch.Config{
-		Username: cfg.esUsername,
-		Password: cfg.esPassword,
-		// ServiceToken: cfg.secretToken,
+		Username:   cfg.esUsername,
+		Password:   cfg.esPassword,
 		Addresses:  strings.Split(cfg.esURL, ","),
 		Transport:  transport,
 		MaxRetries: 5,
