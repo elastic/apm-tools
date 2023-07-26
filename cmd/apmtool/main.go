@@ -352,7 +352,9 @@ func main() {
 			Name:   "list-services",
 			Usage:  "list APM services",
 			Action: commands.servicesCommand,
-		}, NewTraceGenCmd(commands),
+		},
+			NewTraceGenCmd(commands),
+			NewESPollCmd(commands),
 		},
 	}
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
