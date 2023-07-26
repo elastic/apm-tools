@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -38,7 +39,14 @@ func (cmd *Commands) uploadSourcemapCommand(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if filename := c.String("file"); filename == "-" {
+	if filename := c.String("file"); filename == "" {
+		stat, err := os.Stdin.Stat()
+		if err != nil {
+			log.Fatalf("failed to stat stdin: %s", err.Error())
+		}
+		if stat.Size() == 0 {
+			log.Fatal("empty -file flag and stdin, please set one.")
+		}
 		if _, err := io.Copy(sourcemapFileWriter, os.Stdin); err != nil {
 			return err
 		}
@@ -93,7 +101,7 @@ func NewUploadSourcemapCmd(commands *Commands) *cli.Command {
 				Name:     "file",
 				Aliases:  []string{"f"},
 				Required: true,
-				Usage:    "File containing the sourcemap to upload. Use '-' to read from stdin.",
+				Usage:    "File containing the sourcemap to upload. Sourcemap must be provided via this flag or stdin.",
 			},
 			&cli.StringFlag{
 				Name:     "service-name",

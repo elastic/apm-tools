@@ -20,6 +20,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 
@@ -34,7 +35,14 @@ func (cmd *Commands) sendEventsCommand(c *cli.Context) error {
 
 	var body io.Reader
 	filename := c.String("file")
-	if filename == "-" {
+	if filename == "" {
+		stat, err := os.Stdin.Stat()
+		if err != nil {
+			log.Fatalf("failed to stat stdin: %s", err.Error())
+		}
+		if stat.Size() == 0 {
+			log.Fatal("empty -file flag and stdin, please set one.")
+		}
 		body = io.NopCloser(os.Stdin)
 	} else {
 		f, err := os.Open(filename)
@@ -89,7 +97,7 @@ func NewSendEventCmd(commands *Commands) *cli.Command {
 				Name:     "file",
 				Aliases:  []string{"f"},
 				Required: true,
-				Usage:    "File containing the payload to send, in ND-JSON format. Use '-' to read from stdin.",
+				Usage:    "File containing the payload to send, in ND-JSON format. Payload must be provided via this flag or stdin.",
 			},
 			&cli.BoolFlag{
 				Name:  "rumv2",
