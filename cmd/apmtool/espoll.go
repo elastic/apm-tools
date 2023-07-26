@@ -70,6 +70,7 @@ func (cmd *Commands) pollDocs(c *cli.Context) error {
 		if stat.Size() == 0 {
 			log.Fatal("empty -query flag and stdin, please set one.")
 		}
+
 		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			log.Fatalf("failed to read stdin: %s", err.Error())
