@@ -99,18 +99,23 @@ func SendOTLPTrace(ctx context.Context, cfg Config) error {
 }
 
 func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, error) {
-	ctx, parent := tracer.Start(ctx, "parent", trace.WithSpanKind(trace.SpanKindServer))
-	defer parent.End()
+	now := time.Now()
+	ctx, parent := tracer.Start(ctx,
+		"parent",
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithTimestamp(now),
+	)
+	defer parent.End(trace.WithTimestamp(now.Add(time.Second * 1500)))
 
-	_, child1 := tracer.Start(ctx, "child1")
+	_, child1 := tracer.Start(ctx, "child1", trace.WithTimestamp(now.Add(time.Microsecond*500)))
 	time.Sleep(10 * time.Millisecond)
 	child1.AddEvent("an arbitrary event")
-	child1.End()
+	child1.End(trace.WithTimestamp(now.Add(time.Second * 1)))
 
-	_, child2 := tracer.Start(ctx, "child2")
+	_, child2 := tracer.Start(ctx, "child2", trace.WithTimestamp(now.Add(time.Second*600)))
 	time.Sleep(10 * time.Millisecond)
 	child2.RecordError(errors.New("an exception occurred"))
-	child2.End()
+	child2.End(trace.WithTimestamp(now.Add(time.Millisecond * 1300)))
 
 	return ctx, nil
 }
