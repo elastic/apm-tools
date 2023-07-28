@@ -105,7 +105,7 @@ func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, e
 		trace.WithSpanKind(trace.SpanKindServer),
 		trace.WithTimestamp(now),
 	)
-	defer parent.End(trace.WithTimestamp(now.Add(time.Second * 1500)))
+	defer parent.End(trace.WithTimestamp(now.Add(time.Millisecond * 1500)))
 
 	_, child1 := tracer.Start(ctx, "child1", trace.WithTimestamp(now.Add(time.Microsecond*500)))
 	time.Sleep(10 * time.Millisecond)
