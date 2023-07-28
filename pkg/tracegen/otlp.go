@@ -107,12 +107,12 @@ func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, e
 	)
 	defer parent.End(trace.WithTimestamp(now.Add(time.Millisecond * 1500)))
 
-	_, child1 := tracer.Start(ctx, "child1", trace.WithTimestamp(now.Add(time.Microsecond*500)))
+	_, child1 := tracer.Start(ctx, "child1", trace.WithTimestamp(now.Add(time.Millisecond*500)))
 	time.Sleep(10 * time.Millisecond)
 	child1.AddEvent("an arbitrary event")
 	child1.End(trace.WithTimestamp(now.Add(time.Second * 1)))
 
-	_, child2 := tracer.Start(ctx, "child2", trace.WithTimestamp(now.Add(time.Second*600)))
+	_, child2 := tracer.Start(ctx, "child2", trace.WithTimestamp(now.Add(time.Millisecond*600)))
 	time.Sleep(10 * time.Millisecond)
 	child2.RecordError(errors.New("an exception occurred"))
 	child2.End(trace.WithTimestamp(now.Add(time.Millisecond * 1300)))
