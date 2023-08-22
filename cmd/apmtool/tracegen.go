@@ -46,7 +46,7 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 		tracegen.WithAPMServerURL(cmd.cfg.APMServerURL),
 		tracegen.WithAPIKey(creds.APIKey),
 		tracegen.WithSampleRate(c.Float64("sample-rate")),
-		tracegen.WithInsecureConn(c.Bool("insecure")),
+		tracegen.WithInsecureConn(cmd.cfg.TLSSkipVerify),
 		tracegen.WithElasticAPMTracer(apmTracer),
 		tracegen.WithOTLPProtocol(c.String("otlp-protocol")),
 		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
@@ -85,11 +85,6 @@ func NewTraceGenCmd(commands *Commands) *cli.Command {
 				Name:  "sample-rate",
 				Usage: "set the sample rate. allowed value: min: 0.0001, max: 1.000",
 				Value: 1.0,
-			},
-			&cli.BoolFlag{
-				Name:  "insecure",
-				Usage: "sets agents to skip the server's TLS certificate verification",
-				Value: false,
 			},
 			&cli.StringFlag{
 				Name:  "otlp-protocol",
