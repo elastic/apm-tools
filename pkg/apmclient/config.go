@@ -50,6 +50,14 @@ type Config struct {
 	// If this is unspecified, it will be derived from
 	// ElasticsearchURL if that is an Elastic Cloud URL.
 	KibanaURL string
+
+	// TLSSkipVerify determines if TLS certificate
+	// verification is skipped or not. Default to false.
+	//
+	// If not specified the value will be take from
+	// TLS_ACCEPT_UNAUTHORIZED env var.
+	// Any value different from "" is considered true.
+	TLSSkipVerify bool
 }
 
 // NewConfig returns a Config intialised from environment variables.
@@ -91,6 +99,9 @@ func (cfg *Config) Finalize() error {
 	}
 	if cfg.KibanaURL == "" {
 		cfg.KibanaURL = os.Getenv("KIBANA_URL")
+	}
+	if env := os.Getenv("TLS_SKIP_VERIFY"); !cfg.TLSSkipVerify && env != "" {
+		cfg.TLSSkipVerify = true
 	}
 	return cfg.InferElasticCloudURLs()
 }

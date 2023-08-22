@@ -81,6 +81,14 @@ func main() {
 				Destination: &commands.cfg.APMServerURL,
 				Persistent:  true,
 			},
+			&cli.BoolFlag{
+				Name:        "insecure",
+				Usage:       "sets agents to skip the server's TLS certificate verification",
+				Value:       false,
+				Sources:     cli.EnvVars("TLS_SKIP_VERIFY"),
+				Destination: &commands.cfg.TLSSkipVerify,
+				Persistent:  true,
+			},
 		},
 		Commands: []*cli.Command{
 			NewPrintEnvCmd(commands),
