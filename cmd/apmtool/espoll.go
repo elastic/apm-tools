@@ -45,6 +45,8 @@ type config struct {
 	esUsername string
 	esPassword string
 
+	tlsSkipVerify bool
+
 	target  string
 	timeout time.Duration
 	hits    uint
@@ -56,6 +58,8 @@ func (cmd *Commands) pollDocs(c *cli.Context) error {
 		esURL:      cmd.cfg.ElasticsearchURL,
 		esUsername: cmd.cfg.Username,
 		esPassword: cmd.cfg.Password,
+
+		tlsSkipVerify: cmd.cfg.TLSSkipVerify,
 
 		target:  c.String("target"),
 		timeout: c.Duration("timeout"),
@@ -126,7 +130,7 @@ func Main(ctx context.Context, cfg config) error {
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.tlsSkipVerify}
 
 	client, err := elasticsearch.NewClient(elasticsearch.Config{
 		Username:   cfg.esUsername,
