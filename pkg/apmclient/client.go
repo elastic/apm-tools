@@ -126,23 +126,38 @@ func (c *Client) ServiceSummary(ctx context.Context, options ...Option) ([]Servi
 		Aggregations: map[string]types.Aggregations{
 			"services": {
 				MultiTerms: &types.MultiTermsAggregation{
-					Terms: []types.MultiTermLookup{
-						{Field: "service.name"},
-						{Field: "service.environment"},
-						{Field: "service.language.name"},
-						{Field: "agent.name"},
-					},
+					Terms: []types.MultiTermLookup{{
+						Field: "service.name",
+					}, {
+						Field:   "service.environment",
+						Missing: "",
+					}, {
+						Field: "service.language.name",
+					}, {
+						Field: "agent.name",
+					}},
 				},
 			},
 		},
 	}
 	// TODO select appropriate resolution according to the time filter.
 	resp, err := c.es.Search().
-		Index("metrics-apm.service_summary_1m_metrics-*").
+		Index("metrics-apm.service_summary.1m-*").
 		Size(0).Request(req).Do(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error search service_summmary metrics")
 	}
-	fmt.Println(resp.Aggregations)
-	return nil, nil
+
+	servicesAggregation := resp.Aggregations["services"].(*types.MultiTermsAggregate)
+	buckets := servicesAggregation.Buckets.([]types.MultiTermsBucket)
+	out := make([]ServiceSummary, len(buckets))
+	for i, bucket := range buckets {
+		out[i] = ServiceSummary{
+			Name:        bucket.Key[0].(string),
+			Environment: bucket.Key[1].(string),
+			Language:    bucket.Key[2].(string),
+			Agent:       bucket.Key[3].(string),
+		}
+	}
+	return out, nil
 }
