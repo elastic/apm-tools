@@ -55,7 +55,7 @@ type Config struct {
 	// verification is skipped or not. Default to false.
 	//
 	// If not specified the value will be take from
-	// TLS_ACCEPT_UNAUTHORIZED env var.
+	// TLS_SKIP_VERIFY env var.
 	// Any value different from "" is considered true.
 	TLSSkipVerify bool
 }
