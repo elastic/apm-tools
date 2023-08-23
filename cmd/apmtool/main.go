@@ -83,7 +83,7 @@ func main() {
 			},
 			&cli.BoolFlag{
 				Name:        "insecure",
-				Usage:       "sets agents to skip the server's TLS certificate verification",
+				Usage:       "skip TLS certificate verification of Elasticsearch and APM server",
 				Value:       false,
 				Sources:     cli.EnvVars("TLS_SKIP_VERIFY"),
 				Destination: &commands.cfg.TLSSkipVerify,
