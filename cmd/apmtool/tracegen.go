@@ -19,13 +19,16 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"math/rand"
+	"net/url"
 	"os"
 	"os/signal"
 
 	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 	"go.uber.org/zap"
 
 	"github.com/urfave/cli/v3"
@@ -38,10 +41,31 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	apmTracer, err := apm.NewTracer(newUniqueServiceName("service", "intake"), "0.0.1")
+
+	// TODO: the tracer should be created by tracegen from tracegen.Config
+	var apmServerTLSConfig *tls.Config
+	if cmd.cfg.TLSSkipVerify {
+		apmServerTLSConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	apmServerURL, err := url.Parse(cmd.cfg.APMServerURL)
+	if err != nil {
+		return err
+	}
+	apmTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		ServerURLs:      []*url.URL{apmServerURL},
+		APIKey:          creds.APIKey,
+		UserAgent:       "apm-tool",
+		TLSClientConfig: apmServerTLSConfig,
+	})
+	apmTracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName:    newUniqueServiceName("service", "intake"),
+		ServiceVersion: "0.0.1",
+		Transport:      apmTransport,
+	})
 	if err != nil {
 		log.Fatal("failed to instantiate apm tracer")
 	}
+
 	cfg := tracegen.NewConfig(
 		tracegen.WithAPMServerURL(cmd.cfg.APMServerURL),
 		tracegen.WithAPIKey(creds.APIKey),
