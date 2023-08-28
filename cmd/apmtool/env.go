@@ -30,19 +30,18 @@ func (cmd *Commands) envCommand(c *cli.Context) error {
 	}
 
 	fmt.Printf("export ELASTIC_APM_SERVER_URL=%q;\n", cmd.cfg.APMServerURL)
-	if creds.SecretToken != "" {
-		fmt.Printf("export ELASTIC_APM_SECRET_TOKEN=%q;\n", creds.SecretToken)
-	} else if creds.APIKey != "" {
+	if creds.APIKey != "" {
 		fmt.Printf("export ELASTIC_APM_API_KEY=%q;\n", creds.APIKey)
+	} else if creds.SecretToken != "" {
+		fmt.Printf("export ELASTIC_APM_SECRET_TOKEN=%q;\n", creds.SecretToken)
 	}
 
 	fmt.Printf("export OTEL_EXPORTER_OTLP_ENDPOINT=%q;\n", cmd.cfg.APMServerURL)
-	if creds.SecretToken != "" {
-		fmt.Printf("export OTEL_EXPORTER_OTLP_HEADERS=%q;\n", "Authorization=Bearer "+creds.SecretToken)
-	} else if creds.APIKey != "" {
+	if creds.APIKey != "" {
 		fmt.Printf("export OTEL_EXPORTER_OTLP_HEADERS=%q;\n", "Authorization=ApiKey "+creds.APIKey)
+	} else if creds.SecretToken != "" {
+		fmt.Printf("export OTEL_EXPORTER_OTLP_HEADERS=%q;\n", "Authorization=Bearer "+creds.SecretToken)
 	}
-
 	return nil
 }
 
