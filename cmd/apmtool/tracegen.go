@@ -57,6 +57,9 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 		UserAgent:       "apm-tool",
 		TLSClientConfig: apmServerTLSConfig,
 	})
+	if err != nil {
+		return err
+	}
 	apmTracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName:    newUniqueServiceName("service", "intake"),
 		ServiceVersion: "0.0.1",
