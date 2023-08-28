@@ -19,8 +19,10 @@ package apmclient
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -38,11 +40,15 @@ type Client struct {
 
 // New returns a new Client for querying APM data.
 func New(cfg Config) (*Client, error) {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.TLSSkipVerify}
+
 	es, err := elasticsearch.NewTypedClient(elasticsearch.Config{
 		Addresses: []string{cfg.ElasticsearchURL},
 		Username:  cfg.Username,
 		APIKey:    cfg.APIKey,
 		Password:  cfg.Password,
+		Transport: transport,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error creating Elasticsearch client: %w", err)
