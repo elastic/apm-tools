@@ -21,28 +21,29 @@ package tracegen
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 )
 
 // SendIntakeV2Trace generate a trace including a transaction, a span and an error
 func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
-	var errs []error
 	if err := cfg.validate(); err != nil {
-		errs = append(errs, err)
+		return apm.TraceContext{}, err
 	}
-	if cfg.elasticAPMTracer == nil {
-		errs = append(
-			errs,
-			errors.New("elasticAPMTracer must be provided"),
-		)
+
+	tracer, err := newTracer(cfg)
+	if err != nil {
+		return apm.TraceContext{}, fmt.Errorf("failed to create tracer: %w", err)
 	}
-	if len(errs) > 0 {
-		return apm.TraceContext{}, errors.Join(errs...)
-	}
+	defer tracer.Close()
+	defer tracer.Flush(ctx.Done())
+
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
 		Key: "es", Value: fmt.Sprintf("s:%.4g", cfg.sampleRate),
@@ -54,7 +55,7 @@ func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error
 		State:   ts,
 	}
 
-	tx := cfg.elasticAPMTracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
+	tx := tracer.StartTransactionOptions("parent-tx", "apmtool", apm.TransactionOptions{
 		TraceContext: traceContext,
 	})
 
@@ -76,7 +77,7 @@ func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error
 	exit.Outcome = "failure"
 
 	// error
-	e := cfg.elasticAPMTracer.NewError(errors.New("timeout"))
+	e := tracer.NewError(errors.New("timeout"))
 	e.Culprit = "timeout"
 	e.SetSpan(exit)
 	e.Send()
@@ -88,7 +89,34 @@ func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error
 	tx.Duration = 2 * time.Second
 	tx.Outcome = "success"
 	tx.End()
-	cfg.elasticAPMTracer.Flush(ctx.Done())
 
 	return tx.TraceContext(), nil
+}
+
+func newTracer(cfg Config) (*apm.Tracer, error) {
+	apmServerURL, err := url.Parse(cfg.apmServerURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse endpoint: %w", err)
+	}
+
+	var apmServerTLSConfig *tls.Config
+	if cfg.insecure {
+		apmServerTLSConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	apmTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		ServerURLs:      []*url.URL{apmServerURL},
+		APIKey:          cfg.apiKey,
+		UserAgent:       "apm-tool",
+		TLSClientConfig: apmServerTLSConfig,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName:    cfg.apmServiceName,
+		ServiceVersion: "0.0.1",
+		Transport:      apmTransport,
+	})
+
 }
