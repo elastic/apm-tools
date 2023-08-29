@@ -100,7 +100,7 @@ func (c *Client) CreateAgentAPIKey(ctx context.Context, expiration time.Duration
 	name := "apm-agent"
 	var maybeExpiration types.Duration
 	if expiration > 0 {
-		maybeExpiration = expiration
+		maybeExpiration = formatDurationElasticsearch(expiration)
 	}
 	resp, err := c.es.Security.CreateApiKey().Request(&createapikey.Request{
 		Name:       &name,
@@ -166,4 +166,28 @@ func (c *Client) ServiceSummary(ctx context.Context, options ...Option) ([]Servi
 		}
 	}
 	return out, nil
+}
+
+var elasticsearchTimeUnits = []struct {
+	Duration time.Duration
+	Unit     string
+}{
+	{time.Hour, "h"},
+	{time.Minute, "m"},
+	{time.Second, "s"},
+	{time.Millisecond, "ms"},
+	{time.Microsecond, "micros"},
+}
+
+// formatDurationElasticsearch formats a duration using
+// Elasticsearch supported time units.
+//
+// See https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html#time-units
+func formatDurationElasticsearch(d time.Duration) string {
+	for _, tu := range elasticsearchTimeUnits {
+		if d%tu.Duration == 0 {
+			return fmt.Sprintf("%d%s", d/tu.Duration, tu.Unit)
+		}
+	}
+	return fmt.Sprintf("%dnanos", d)
 }
