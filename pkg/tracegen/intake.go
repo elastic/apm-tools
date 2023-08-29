@@ -32,17 +32,16 @@ import (
 )
 
 // SendIntakeV2Trace generate a trace including a transaction, a span and an error
-func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error) {
+func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, EventStats, error) {
 	if err := cfg.validate(); err != nil {
-		return apm.TraceContext{}, err
+		return apm.TraceContext{}, EventStats{}, err
 	}
 
 	tracer, err := newTracer(cfg)
 	if err != nil {
-		return apm.TraceContext{}, fmt.Errorf("failed to create tracer: %w", err)
+		return apm.TraceContext{}, EventStats{}, fmt.Errorf("failed to create tracer: %w", err)
 	}
 	defer tracer.Close()
-	defer tracer.Flush(ctx.Done())
 
 	// set sample rate
 	ts := apm.NewTraceState(apm.TraceStateEntry{
@@ -90,7 +89,14 @@ func SendIntakeV2Trace(ctx context.Context, cfg Config) (apm.TraceContext, error
 	tx.Outcome = "success"
 	tx.End()
 
-	return tx.TraceContext(), nil
+	tracer.Flush(ctx.Done())
+	tracerStats := tracer.Stats()
+	stats := EventStats{
+		ExceptionsSent: int(tracerStats.ErrorsSent),
+		SpansSent:      int(tracerStats.SpansSent + tracerStats.TransactionsSent),
+	}
+
+	return tx.TraceContext(), stats, nil
 }
 
 func newTracer(cfg Config) (*apm.Tracer, error) {
@@ -118,5 +124,4 @@ func newTracer(cfg Config) (*apm.Tracer, error) {
 		ServiceVersion: "0.0.1",
 		Transport:      apmTransport,
 	})
-
 }

@@ -50,10 +50,25 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	if err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
+	stats, err := tracegen.SendDistributedTrace(ctx, cfg)
+	if err != nil {
 		log.Fatal("error sending distributed tracing data", zap.Error(err))
 	}
+	fmt.Printf(
+		"Sent %d span%s, %d exception%s, and %d log%s\n",
+		stats.SpansSent, pluralize(stats.SpansSent),
+		stats.ExceptionsSent, pluralize(stats.ExceptionsSent),
+		stats.LogsSent, pluralize(stats.LogsSent),
+	)
+
 	return nil
+}
+
+func pluralize(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func newUniqueServiceName(prefix string, suffix string) string {
