@@ -117,7 +117,7 @@ func newTracer(cfg Config) (*apm.Tracer, error) {
 		TLSClientConfig: apmServerTLSConfig,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create APM transport: %w", err)
 	}
 	return apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName:    cfg.apmServiceName,

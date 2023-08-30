@@ -20,12 +20,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
-
-	"go.uber.org/zap"
 
 	"github.com/urfave/cli/v3"
 
@@ -52,7 +49,7 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 
 	stats, err := tracegen.SendDistributedTrace(ctx, cfg)
 	if err != nil {
-		log.Fatal("error sending distributed tracing data", zap.Error(err))
+		return fmt.Errorf("error sending distributed trace: %w", err)
 	}
 	fmt.Printf(
 		"Sent %d span%s, %d exception%s, and %d log%s\n",
