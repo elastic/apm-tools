@@ -33,8 +33,8 @@ type EventStats struct {
 // Add adds the statistics together, returning the result.
 func (lhs EventStats) Add(rhs EventStats) EventStats {
 	return EventStats{
-		ExceptionsSent: rhs.ExceptionsSent,
-		LogsSent:       rhs.LogsSent,
-		SpansSent:      rhs.SpansSent,
+		ExceptionsSent: lhs.ExceptionsSent + rhs.ExceptionsSent,
+		LogsSent:       lhs.LogsSent + rhs.LogsSent,
+		SpansSent:      lhs.SpansSent + rhs.SpansSent,
 	}
 }
