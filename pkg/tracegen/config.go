@@ -34,8 +34,7 @@ type Config struct {
 	traceID      apm.TraceID
 	insecure     bool
 
-	elasticAPMTracer *apm.Tracer
-
+	apmServiceName  string
 	otlpServiceName string
 	otlpProtocol    string
 }
@@ -91,24 +90,30 @@ func WithInsecureConn(b bool) ConfigOption {
 	}
 }
 
-// WithElasticAPMTracer sets tracer for the elastic GO Agent
-// this config will be ignored when using SendOTLPTrace
-func WithElasticAPMTracer(t *apm.Tracer) ConfigOption {
+// WithElasticAPMServiceName specifies the service name that
+// the Elastic APM agent will use.
+//
+// This config will be ignored when using SendOTLPTrace.
+func WithElasticAPMServiceName(s string) ConfigOption {
 	return func(c *Config) {
-		c.elasticAPMTracer = t
+		c.apmServiceName = s
 	}
 }
 
-// WithOTLPServiceName specifies the service name that otlp will use
-// this config will be ignored when using SendIntakeV2Trace
+// WithOTLPServiceName specifies the service name that the
+// OpenTelemetry SDK will use.
+//
+// This config will be ignored when using SendIntakeV2Trace.
 func WithOTLPServiceName(s string) ConfigOption {
 	return func(c *Config) {
 		c.otlpServiceName = s
 	}
 }
 
-// WithOTLPProtocol specifies OTLP transport protocol to one of: grpc (default), http/protobuf"
-// this config will be ignored when using SendIntakeV2Trace
+// WithOTLPProtocol specifies OTLP transport protocol to one of:
+// grpc (default), http/protobuf.
+//
+// This config will be ignored when using SendIntakeV2Trace
 func WithOTLPProtocol(p string) ConfigOption {
 	return func(c *Config) {
 		c.otlpProtocol = p

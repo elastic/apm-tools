@@ -37,7 +37,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.8.0"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -48,14 +47,14 @@ import (
 // SendOTLPTrace sends spans, error and logs to the configured APM Server
 // If distributed tracing is needed, you might want to set up the propagator
 // using SetOTLPTracePropagator function before calling this function
-func SendOTLPTrace(ctx context.Context, cfg Config) error {
+func SendOTLPTrace(ctx context.Context, cfg Config) (EventStats, error) {
 	if err := cfg.validate(); err != nil {
-		return err
+		return EventStats{}, err
 	}
 
 	endpointURL, err := url.Parse(cfg.apmServerURL)
 	if err != nil {
-		return fmt.Errorf("failed to parse endpoint: %w", err)
+		return EventStats{}, fmt.Errorf("failed to parse endpoint: %w", err)
 	}
 	switch endpointURL.Scheme {
 	case "http":
@@ -67,38 +66,44 @@ func SendOTLPTrace(ctx context.Context, cfg Config) error {
 			endpointURL.Host = net.JoinHostPort(endpointURL.Host, "443")
 		}
 	default:
-		return fmt.Errorf("endpoint must be prefixed with http:// or https://")
+		return EventStats{}, fmt.Errorf("endpoint must be prefixed with http:// or https://")
 	}
 
 	otlpExporters, err := newOTLPExporters(ctx, endpointURL, cfg)
 	if err != nil {
-		return err
+		return EventStats{}, err
 	}
 	defer otlpExporters.cleanup(ctx)
 
+	resource := resource.NewSchemaless(
+		attribute.String("service.name", cfg.otlpServiceName),
+	)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSyncer(otlpExporters.trace),
-		sdktrace.WithResource(
-			resource.NewSchemaless(attribute.String("service.name", cfg.otlpServiceName)),
-		),
+		sdktrace.WithResource(resource),
 	)
+
 	// generateSpans returns ctx that contains trace context
-	ctx, err = generateSpans(ctx, tracerProvider.Tracer("tracegen"))
+	var stats EventStats
+	ctx, err = generateSpans(ctx, tracerProvider.Tracer("tracegen"), &stats)
 	if err != nil {
-		return err
+		return EventStats{}, err
 	}
-	if err := generateLogs(ctx, otlpExporters.log, cfg.otlpServiceName); err != nil {
-		return err
+	if err := generateLogs(ctx, otlpExporters.log, resource, &stats); err != nil {
+		return EventStats{}, err
 	}
 
 	// Shutdown, flushing all data to the server.
 	if err := tracerProvider.Shutdown(ctx); err != nil {
-		return err
+		return EventStats{}, err
 	}
-	return otlpExporters.cleanup(ctx)
+	if err := otlpExporters.cleanup(ctx); err != nil {
+		return EventStats{}, err
+	}
+	return stats, nil
 }
 
-func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, error) {
+func generateSpans(ctx context.Context, tracer trace.Tracer, stats *EventStats) (context.Context, error) {
 	now := time.Now()
 	ctx, parent := tracer.Start(ctx,
 		"parent",
@@ -106,35 +111,46 @@ func generateSpans(ctx context.Context, tracer trace.Tracer) (context.Context, e
 		trace.WithTimestamp(now),
 	)
 	defer parent.End(trace.WithTimestamp(now.Add(time.Millisecond * 1500)))
+	stats.SpansSent++
 
 	_, child1 := tracer.Start(ctx, "child1", trace.WithTimestamp(now.Add(time.Millisecond*500)))
 	time.Sleep(10 * time.Millisecond)
 	child1.AddEvent("an arbitrary event")
 	child1.End(trace.WithTimestamp(now.Add(time.Second * 1)))
+	stats.SpansSent++
+	stats.LogsSent++ // span event is captured as a log
 
 	_, child2 := tracer.Start(ctx, "child2", trace.WithTimestamp(now.Add(time.Millisecond*600)))
 	time.Sleep(10 * time.Millisecond)
 	child2.RecordError(errors.New("an exception occurred"))
 	child2.End(trace.WithTimestamp(now.Add(time.Millisecond * 1300)))
+	stats.SpansSent++
+	stats.ExceptionsSent++ // error captured as an error/exception log event
 
 	return ctx, nil
 }
 
-func generateLogs(ctx context.Context, logger otlplogExporter, serviceName string) error {
+func generateLogs(ctx context.Context, logger otlplogExporter, res *resource.Resource, stats *EventStats) error {
 	logs := plog.NewLogs()
-
 	rl := logs.ResourceLogs().AppendEmpty()
 	attribs := rl.Resource().Attributes()
-	attribs.Insert(string(semconv.ServiceNameKey),
-		pcommon.NewValueString(serviceName),
-	)
+	for iter := res.Iter(); iter.Next(); {
+		kv := iter.Attribute()
+		switch typ := kv.Value.Type(); typ {
+		case attribute.STRING:
+			attribs.UpsertString(string(kv.Key), kv.Value.AsString())
+		default:
+			panic(fmt.Errorf("unhandled attribute type %q", typ))
+		}
+	}
+
 	sl := rl.ScopeLogs().AppendEmpty().LogRecords()
 	record := sl.AppendEmpty()
 	record.Body().SetStringVal("sample body value")
 	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
 	record.SetSeverityNumber(plog.SeverityNumberFATAL)
 	record.SetSeverityText("fatal")
-
+	stats.LogsSent++
 	return logger.Export(ctx, logs)
 }
 

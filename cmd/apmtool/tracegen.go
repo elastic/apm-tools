@@ -20,13 +20,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
-
-	"go.elastic.co/apm/v2"
-	"go.uber.org/zap"
 
 	"github.com/urfave/cli/v3"
 
@@ -38,26 +34,38 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	apmTracer, err := apm.NewTracer(newUniqueServiceName("service", "intake"), "0.0.1")
-	if err != nil {
-		log.Fatal("failed to instantiate apm tracer")
-	}
+
 	cfg := tracegen.NewConfig(
 		tracegen.WithAPMServerURL(cmd.cfg.APMServerURL),
 		tracegen.WithAPIKey(creds.APIKey),
 		tracegen.WithSampleRate(c.Float64("sample-rate")),
 		tracegen.WithInsecureConn(cmd.cfg.TLSSkipVerify),
-		tracegen.WithElasticAPMTracer(apmTracer),
 		tracegen.WithOTLPProtocol(c.String("otlp-protocol")),
 		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
+		tracegen.WithElasticAPMServiceName(newUniqueServiceName("service", "intake")),
 	)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	if err := tracegen.SendDistributedTrace(ctx, cfg); err != nil {
-		log.Fatal("error sending distributed tracing data", zap.Error(err))
+	stats, err := tracegen.SendDistributedTrace(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("error sending distributed trace: %w", err)
 	}
+	fmt.Printf(
+		"Sent %d span%s, %d exception%s, and %d log%s\n",
+		stats.SpansSent, pluralize(stats.SpansSent),
+		stats.ExceptionsSent, pluralize(stats.ExceptionsSent),
+		stats.LogsSent, pluralize(stats.LogsSent),
+	)
+
 	return nil
+}
+
+func pluralize(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func newUniqueServiceName(prefix string, suffix string) string {

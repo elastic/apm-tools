@@ -11,12 +11,10 @@ require (
 	github.com/tidwall/sjson v1.2.5
 	github.com/urfave/cli/v3 v3.0.0-alpha4
 	go.elastic.co/apm/v2 v2.4.3
-	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.56.2
 )
 
 require (
-	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -54,8 +52,6 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.8.0
 	go.opentelemetry.io/otel/sdk v1.8.0
 	go.opentelemetry.io/otel/trace v1.8.0
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
