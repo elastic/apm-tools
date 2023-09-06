@@ -11,3 +11,7 @@ lint: tools/go.mod
 .PHONY: test
 test: go.mod
 	go test -race -v -timeout=$(GO_TEST_TIMEOUT) ./...
+
+.PHONY: integration-test
+integration-test:
+	 go test --tags=integration ./...
