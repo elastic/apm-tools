@@ -95,7 +95,7 @@ func generateMetrics(m metric.Meter, stats *EventStats) error {
 	return nil
 }
 
-func newOTLPMetricHTTPExporter(ctx context.Context, cfg Config) (*otlpmetrichttp.Exporter, error) {
+func newOTLPMetricHTTPExporter(ctx context.Context, cfg config) (*otlpmetrichttp.Exporter, error) {
 	endpoint, err := otlpEndpoint(cfg.apmServerURL)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func otlpEndpoint(s string) (*url.URL, error) {
 	return u, nil
 }
 
-func newOTLPMetricGRPCExporter(ctx context.Context, cfg Config) (*otlpmetricgrpc.Exporter, func(), error) {
+func newOTLPMetricGRPCExporter(ctx context.Context, cfg config) (*otlpmetricgrpc.Exporter, func(), error) {
 	endpoint, err := otlpEndpoint(cfg.apmServerURL)
 	if err != nil {
 		return nil, func() {}, err

@@ -22,9 +22,9 @@ import (
 	"fmt"
 )
 
-type ConfigOption func(*Config)
+type ConfigOption func(*config)
 
-type Config struct {
+type config struct {
 	// apiKey holds an Elasticsearch API key.
 	apiKey string
 	// apmServerURL holdes the Elasticsearch APM server URL endpoint.
@@ -46,7 +46,7 @@ const (
 	httpOTLPProtocol = "http/protobuf"
 )
 
-func (cfg Config) Validate() error {
+func (cfg config) Validate() error {
 	var errs []error
 	if cfg.apmServiceName == "" && cfg.otlpServiceName == "" {
 		errs = append(errs, errors.New("both APM service name and OTLP service name cannot be empty"))
@@ -72,8 +72,8 @@ func (cfg Config) Validate() error {
 	return nil
 }
 
-func newConfig(opts ...ConfigOption) Config {
-	cfg := Config{
+func newConfig(opts ...ConfigOption) config {
+	cfg := config{
 		otlpProtocol: "grpc",
 	}
 	for _, opt := range opts {
@@ -84,19 +84,19 @@ func newConfig(opts ...ConfigOption) Config {
 }
 
 func WithAPIKey(s string) ConfigOption {
-	return func(c *Config) {
+	return func(c *config) {
 		c.apiKey = s
 	}
 }
 
 func WithAPMServerURL(s string) ConfigOption {
-	return func(c *Config) {
+	return func(c *config) {
 		c.apmServerURL = s
 	}
 }
 
 func WithVerifyServerCert(b bool) ConfigOption {
-	return func(c *Config) {
+	return func(c *config) {
 		c.verifyServerCert = b
 	}
 }
@@ -106,7 +106,7 @@ func WithVerifyServerCert(b bool) ConfigOption {
 //
 // This config will be ignored when using SendOTLPTrace.
 func WithElasticAPMServiceName(s string) ConfigOption {
-	return func(c *Config) {
+	return func(c *config) {
 		c.apmServiceName = s
 	}
 }
@@ -116,7 +116,7 @@ func WithElasticAPMServiceName(s string) ConfigOption {
 //
 // This config will be ignored when using SendIntakeV2Trace.
 func WithOTLPServiceName(s string) ConfigOption {
-	return func(c *Config) {
+	return func(c *config) {
 		c.otlpServiceName = s
 	}
 }
@@ -126,7 +126,7 @@ func WithOTLPServiceName(s string) ConfigOption {
 //
 // This config will be ignored when using SendIntakeV2Trace
 func WithOTLPProtocol(p string) ConfigOption {
-	return func(c *Config) {
+	return func(c *config) {
 		c.otlpProtocol = p
 	}
 }
