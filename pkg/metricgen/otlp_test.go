@@ -36,14 +36,13 @@ func TestSendOTLP_http(t *testing.T) {
 	u := os.Getenv("ELASTIC_APM_SERVER_URL")
 	apiKey := os.Getenv("ELASTIC_APM_API_KEY")
 
-	cfg := metricgen.NewConfig(
+	s, err := metricgen.SendOTLP(context.Background(),
 		metricgen.WithAPMServerURL(u),
 		metricgen.WithAPIKey(apiKey),
 		metricgen.WithVerifyServerCert(false),
 		metricgen.WithOTLPServiceName("metricgen_otlp_test"),
 		metricgen.WithOTLPProtocol("http/protobuf"),
 	)
-	s, err := metricgen.SendOTLP(context.Background(), cfg)
 	require.NoError(t, err)
 
 	t.Logf("%+v\n", s)
@@ -55,14 +54,13 @@ func TestSendOTLP_grpc(t *testing.T) {
 	u := os.Getenv("ELASTIC_APM_SERVER_URL")
 	apiKey := os.Getenv("ELASTIC_APM_API_KEY")
 
-	cfg := metricgen.NewConfig(
+	s, err := metricgen.SendOTLP(context.Background(),
 		metricgen.WithAPMServerURL(u),
 		metricgen.WithAPIKey(apiKey),
 		metricgen.WithVerifyServerCert(false),
 		metricgen.WithOTLPServiceName("metricgen_otlp_test"),
 		metricgen.WithOTLPProtocol("grpc"),
 	)
-	s, err := metricgen.SendOTLP(context.Background(), cfg)
 	require.NoError(t, err)
 
 	t.Logf("%+v\n", s)

@@ -72,7 +72,7 @@ func (cfg Config) Validate() error {
 	return nil
 }
 
-func NewConfig(opts ...ConfigOption) Config {
+func newConfig(opts ...ConfigOption) Config {
 	cfg := Config{
 		otlpProtocol: "grpc",
 	}

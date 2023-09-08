@@ -36,14 +36,12 @@ func TestSendIntakeV2(t *testing.T) {
 	u := os.Getenv("ELASTIC_APM_SERVER_URL")
 	apiKey := os.Getenv("ELASTIC_APM_API_KEY")
 
-	cfg := metricgen.NewConfig(
+	s, err := metricgen.SendIntakeV2(context.Background(),
 		metricgen.WithAPMServerURL(u),
 		metricgen.WithAPIKey(apiKey),
 		metricgen.WithVerifyServerCert(false),
 		metricgen.WithElasticAPMServiceName("metricgen_apm_test"),
 	)
-
-	s, err := metricgen.SendIntakeV2(context.Background(), cfg)
 	require.NoError(t, err)
 
 	t.Logf("%+v\n", s)

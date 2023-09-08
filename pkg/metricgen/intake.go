@@ -34,7 +34,8 @@ import (
 // - apm(float64, value=1.0); gathered from a apm.MetricGatherer
 // - apmotel(float64, value=1.0); gathered from a otel MeterProvider through apmotel bridge
 // All builtin APM Agent metrics have been disabled.
-func SendIntakeV2(ctx context.Context, cfg Config) (EventStats, error) {
+func SendIntakeV2(_ context.Context, opts ...ConfigOption) (EventStats, error) {
+	cfg := newConfig(opts...)
 	if err := cfg.Validate(); err != nil {
 		return EventStats{}, fmt.Errorf("cannot validate IntakeV2 Metrics configuration: %w", err)
 	}

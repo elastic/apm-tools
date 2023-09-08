@@ -41,7 +41,8 @@ import (
 //
 // Metrics sent are:
 // - otlp(float64, value=1.0)
-func SendOTLP(ctx context.Context, cfg Config) (EventStats, error) {
+func SendOTLP(ctx context.Context, opts ...ConfigOption) (EventStats, error) {
+	cfg := newConfig(opts...)
 	if err := cfg.Validate(); err != nil {
 		return EventStats{}, fmt.Errorf("cannot validate OTLP Metrics configuration: %w", err)
 	}
