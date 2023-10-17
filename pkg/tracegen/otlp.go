@@ -138,7 +138,7 @@ func generateLogs(ctx context.Context, logger otlplogExporter, res *resource.Res
 		kv := iter.Attribute()
 		switch typ := kv.Value.Type(); typ {
 		case attribute.STRING:
-			attribs.UpsertString(string(kv.Key), kv.Value.AsString())
+			attribs.PutStr(string(kv.Key), kv.Value.AsString())
 		default:
 			panic(fmt.Errorf("unhandled attribute type %q", typ))
 		}
@@ -146,9 +146,9 @@ func generateLogs(ctx context.Context, logger otlplogExporter, res *resource.Res
 
 	sl := rl.ScopeLogs().AppendEmpty().LogRecords()
 	record := sl.AppendEmpty()
-	record.Body().SetStringVal("sample body value")
+	record.Body().SetStr("sample body value")
 	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-	record.SetSeverityNumber(plog.SeverityNumberFATAL)
+	record.SetSeverityNumber(plog.SeverityNumberFatal)
 	record.SetSeverityText("fatal")
 	stats.LogsSent++
 	return logger.Export(ctx, logs)
@@ -211,7 +211,7 @@ func newOTLPGRPCExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 		cleanup: cleanup,
 		trace:   otlpTraceExporter,
 		log: &otlploggrpcExporter{
-			client:  plogotlp.NewClient(grpcConn),
+			client:  plogotlp.NewGRPCClient(grpcConn),
 			headers: logHeaders,
 		},
 	}, nil
@@ -261,12 +261,12 @@ type otlplogExporter interface {
 
 // otlploggrpcExporter is a simple synchronous log exporter using GRPC
 type otlploggrpcExporter struct {
-	client  plogotlp.Client
+	client  plogotlp.GRPCClient
 	headers map[string]string
 }
 
 func (e *otlploggrpcExporter) Export(ctx context.Context, logs plog.Logs) error {
-	req := plogotlp.NewRequestFromLogs(logs)
+	req := plogotlp.NewExportRequestFromLogs(logs)
 	md := metadata.New(e.headers)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
