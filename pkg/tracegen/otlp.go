@@ -182,8 +182,8 @@ func newOTLPGRPCExporters(ctx context.Context, endpointURL *url.URL, cfg Config)
 		transportCredentials = credentials.NewTLS(&tls.Config{InsecureSkipVerify: cfg.insecure})
 	}
 
-	grpcConn, err := grpc.DialContext(
-		ctx, endpointURL.Host,
+	grpcConn, err := grpc.NewClient(
+		endpointURL.Host,
 		grpc.WithTransportCredentials(transportCredentials),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor("gzip")),
 	)
