@@ -1,6 +1,6 @@
 module github.com/elastic/apm-tools
 
-go 1.20
+go 1.22
 
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.10.1
