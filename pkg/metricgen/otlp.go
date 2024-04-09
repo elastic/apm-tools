@@ -153,8 +153,8 @@ func newOTLPMetricGRPCExporter(ctx context.Context, cfg config) (*otlpmetricgrpc
 		transportCredentials = credentials.NewTLS(&tls.Config{InsecureSkipVerify: !cfg.verifyServerCert})
 	}
 
-	grpcConn, err := grpc.DialContext(
-		ctx, endpoint.Host,
+	grpcConn, err := grpc.NewClient(
+		endpoint.Host,
 		grpc.WithTransportCredentials(transportCredentials),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor("gzip")),
 	)
