@@ -49,10 +49,10 @@ type config struct {
 
 	target  string
 	timeout time.Duration
-	hits    uint
+	hits    uint64
 }
 
-func (cmd *Commands) pollDocs(c *cli.Context) error {
+func (cmd *Commands) pollDocs(ctx context.Context, c *cli.Command) error {
 	cfg := config{
 		query:      c.String("query"),
 		esURL:      cmd.cfg.ElasticsearchURL,
@@ -84,10 +84,10 @@ func (cmd *Commands) pollDocs(c *cli.Context) error {
 
 	log.Println("query:", query)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	ctxMain, cancel := signal.NotifyContext(ctx, os.Interrupt, os.Kill)
 	defer cancel()
 
-	if err := Main(ctx, cfg); err != nil {
+	if err := Main(ctxMain, cfg); err != nil {
 		log.Fatalf("ERROR: %s", err.Error())
 	}
 

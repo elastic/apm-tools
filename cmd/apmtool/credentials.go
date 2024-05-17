@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -76,7 +77,7 @@ func updateCachedCredentials(url string, c *credentials) error {
 	return nil
 }
 
-func (cmd *Commands) getCredentials(c *cli.Context) (*credentials, error) {
+func (cmd *Commands) getCredentials(ctx context.Context, c *cli.Command) (*credentials, error) {
 	creds, err := readCachedCredentials(cmd.cfg.APMServerURL)
 	if err == nil {
 		return creds, nil
@@ -94,7 +95,7 @@ func (cmd *Commands) getCredentials(c *cli.Context) (*credentials, error) {
 	// and extract a secret token from that. Otherwise, create an
 	// API Key.
 	var apiKey, secretToken string
-	policy, err := client.GetElasticCloudAPMInput(c.Context)
+	policy, err := client.GetElasticCloudAPMInput(ctx)
 	policyErr := fmt.Errorf("error getting APM cloud input: %w", err)
 	if err != nil {
 		if c.Bool("verbose") {
@@ -109,7 +110,7 @@ func (cmd *Commands) getCredentials(c *cli.Context) (*credentials, error) {
 	if expiryDuration > 0 {
 		expiry = time.Now().Add(expiryDuration)
 	}
-	apiKey, err = client.CreateAgentAPIKey(c.Context, expiryDuration)
+	apiKey, err = client.CreateAgentAPIKey(ctx, expiryDuration)
 	if err != nil {
 		apiKeyErr := err
 		return nil, fmt.Errorf(

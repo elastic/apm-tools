@@ -19,6 +19,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -29,7 +30,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func (cmd *Commands) uploadSourcemapCommand(c *cli.Context) error {
+func (cmd *Commands) uploadSourcemapCommand(ctx context.Context, c *cli.Command) error {
 	var data bytes.Buffer
 	mw := multipart.NewWriter(&data)
 	mw.WriteField("service_name", c.String("service-name"))

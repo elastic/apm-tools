@@ -18,17 +18,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/urfave/cli/v3"
 )
 
-func (cmd *Commands) servicesCommand(c *cli.Context) error {
+func (cmd *Commands) servicesCommand(ctx context.Context, c *cli.Command) error {
 	client, err := cmd.getClient()
 	if err != nil {
 		return err
 	}
-	services, err := client.ServiceSummary(c.Context)
+	services, err := client.ServiceSummary(ctx)
 	if err != nil {
 		return err
 	}
