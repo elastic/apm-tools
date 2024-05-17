@@ -18,13 +18,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/urfave/cli/v3"
 )
 
-func (cmd *Commands) envCommand(c *cli.Context) error {
-	creds, err := cmd.getCredentials(c)
+func (cmd *Commands) envCommand(ctx context.Context, c *cli.Command) error {
+	creds, err := cmd.getCredentials(ctx, c)
 	if err != nil {
 		return err
 	}

@@ -29,8 +29,8 @@ import (
 	"github.com/elastic/apm-tools/pkg/tracegen"
 )
 
-func (cmd *Commands) sendTrace(c *cli.Context) error {
-	creds, err := cmd.getCredentials(c)
+func (cmd *Commands) sendTrace(ctx context.Context, c *cli.Command) error {
+	creds, err := cmd.getCredentials(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func (cmd *Commands) sendTrace(c *cli.Context) error {
 	cfg := tracegen.NewConfig(
 		tracegen.WithAPMServerURL(cmd.cfg.APMServerURL),
 		tracegen.WithAPIKey(creds.APIKey),
-		tracegen.WithSampleRate(c.Float64("sample-rate")),
+		tracegen.WithSampleRate(c.Float("sample-rate")),
 		tracegen.WithInsecureConn(cmd.cfg.TLSSkipVerify),
 		tracegen.WithOTLPProtocol(c.String("otlp-protocol")),
 		tracegen.WithOTLPServiceName(newUniqueServiceName("service", "otlp")),
@@ -89,7 +89,7 @@ func NewTraceGenCmd(commands *Commands) *cli.Command {
 		Usage:  "generate distributed tracing data using go-agent and otel library",
 		Action: commands.sendTrace,
 		Flags: []cli.Flag{
-			&cli.Float64Flag{
+			&cli.FloatFlag{
 				Name:  "sample-rate",
 				Usage: "set the sample rate. allowed value: min: 0.0001, max: 1.000",
 				Value: 1.0,

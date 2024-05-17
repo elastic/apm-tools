@@ -43,7 +43,7 @@ func main() {
 				Sources:     cli.EnvVars("ELASTICSEARCH_URL"),
 				Destination: &commands.cfg.ElasticsearchURL,
 				Persistent:  true,
-				Action: func(c *cli.Context, v string) error {
+				Action: func(ctx context.Context, c *cli.Command, s string) error {
 					return commands.cfg.InferElasticCloudURLs()
 				},
 			},

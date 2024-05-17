@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -27,8 +28,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func (cmd *Commands) sendEventsCommand(c *cli.Context) error {
-	creds, err := cmd.getCredentials(c)
+func (cmd *Commands) sendEventsCommand(ctx context.Context, c *cli.Command) error {
+	creds, err := cmd.getCredentials(ctx, c)
 	if err != nil {
 		return err
 	}
