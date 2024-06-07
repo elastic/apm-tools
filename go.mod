@@ -3,7 +3,7 @@ module github.com/elastic/apm-tools
 go 1.22
 
 require (
-	github.com/elastic/go-elasticsearch/v8 v8.13.1
+	github.com/elastic/go-elasticsearch/v8 v8.14.0
 	github.com/fatih/color v1.17.0
 	github.com/gofrs/flock v0.8.1
 	github.com/google/go-cmp v0.6.0
@@ -42,7 +42,7 @@ require (
 
 require (
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/elastic/elastic-transport-go/v8 v8.5.0 // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.6.0 // indirect
 	github.com/elastic/go-sysinfo v1.11.1 // indirect
 	github.com/elastic/go-windows v1.0.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
