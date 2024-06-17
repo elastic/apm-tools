@@ -3,7 +3,7 @@ module go.elastic.co/apm/v2/tools
 go 1.19
 
 require (
-	github.com/elastic/go-licenser v0.4.1
+	github.com/elastic/go-licenser v0.4.2
 	go.elastic.co/go-licence-detector v0.6.0
 	golang.org/x/tools v0.22.0
 	honnef.co/go/tools v0.4.7
