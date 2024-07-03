@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.14.0
 	github.com/fatih/color v1.17.0
-	github.com/gofrs/flock v0.11.0
+	github.com/gofrs/flock v0.12.0
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
