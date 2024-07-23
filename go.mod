@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.14.0
 	github.com/fatih/color v1.17.0
-	github.com/gofrs/flock v0.12.0
+	github.com/gofrs/flock v0.12.1
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
@@ -64,6 +64,6 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.28.0
 	go.opentelemetry.io/otel/sdk v1.28.0
 	go.opentelemetry.io/otel/trace v1.28.0
-	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	howett.net/plist v1.0.0 // indirect
 )
