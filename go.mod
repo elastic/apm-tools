@@ -8,7 +8,7 @@ require (
 	github.com/gofrs/flock v0.12.1
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.9.0
-	github.com/tidwall/gjson v1.17.1
+	github.com/tidwall/gjson v1.17.2
 	github.com/tidwall/sjson v1.2.5
 	github.com/urfave/cli/v3 v3.0.0-alpha9
 	go.elastic.co/apm/module/apmotel/v2 v2.6.0
