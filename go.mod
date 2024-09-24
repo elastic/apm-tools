@@ -57,7 +57,7 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.elastic.co/fastjson v1.3.0 // indirect
-	go.opentelemetry.io/collector/pdata v1.15.0
+	go.opentelemetry.io/collector/pdata v1.16.0
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.30.0
