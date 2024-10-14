@@ -10,7 +10,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
-	github.com/urfave/cli/v3 v3.0.0-alpha9
+	github.com/urfave/cli/v3 v3.0.0-alpha9.1
 	go.elastic.co/apm/module/apmotel/v2 v2.6.2
 	go.elastic.co/apm/v2 v2.6.2
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.31.0
@@ -55,7 +55,6 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.elastic.co/fastjson v1.3.0 // indirect
 	go.opentelemetry.io/collector/pdata v1.17.0
 	go.opentelemetry.io/otel v1.31.0
