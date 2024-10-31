@@ -30,9 +30,9 @@ func main() {
 	cmd := &cli.Command{
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
-				Name:       "verbose",
-				Usage:      "print debugging messages about progress",
-				Aliases:    []string{"v"},
+				Name:    "verbose",
+				Usage:   "print debugging messages about progress",
+				Aliases: []string{"v"},
 			},
 			&cli.StringFlag{
 				Name:        "url",
