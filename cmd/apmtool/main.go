@@ -33,7 +33,6 @@ func main() {
 				Name:       "verbose",
 				Usage:      "print debugging messages about progress",
 				Aliases:    []string{"v"},
-				Persistent: true,
 			},
 			&cli.StringFlag{
 				Name:        "url",
@@ -42,7 +41,6 @@ func main() {
 				Value:       "",
 				Sources:     cli.EnvVars("ELASTICSEARCH_URL"),
 				Destination: &commands.cfg.ElasticsearchURL,
-				Persistent:  true,
 				Action: func(ctx context.Context, c *cli.Command, s string) error {
 					return commands.cfg.InferElasticCloudURLs()
 				},
@@ -54,7 +52,6 @@ func main() {
 				Value:       "elastic",
 				Sources:     cli.EnvVars("ELASTICSEARCH_USERNAME"),
 				Destination: &commands.cfg.Username,
-				Persistent:  true,
 			},
 			&cli.StringFlag{
 				Name:        "password",
@@ -62,7 +59,6 @@ func main() {
 				Category:    "Elasticsearch",
 				Sources:     cli.EnvVars("ELASTICSEARCH_PASSWORD"),
 				Destination: &commands.cfg.Password,
-				Persistent:  true,
 			},
 			&cli.StringFlag{
 				Name:        "api-key",
@@ -70,7 +66,6 @@ func main() {
 				Category:    "Elasticsearch",
 				Sources:     cli.EnvVars("ELASTICSEARCH_API_KEY"),
 				Destination: &commands.cfg.APIKey,
-				Persistent:  true,
 			},
 			&cli.StringFlag{
 				Name:        "apm-url",
@@ -79,7 +74,6 @@ func main() {
 				Value:       "",
 				Sources:     cli.EnvVars("ELASTIC_APM_SERVER_URL"),
 				Destination: &commands.cfg.APMServerURL,
-				Persistent:  true,
 			},
 			&cli.BoolFlag{
 				Name:        "insecure",
@@ -87,7 +81,6 @@ func main() {
 				Value:       false,
 				Sources:     cli.EnvVars("TLS_SKIP_VERIFY"),
 				Destination: &commands.cfg.TLSSkipVerify,
-				Persistent:  true,
 			},
 		},
 		Commands: []*cli.Command{
