@@ -10,7 +10,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
-	github.com/urfave/cli/v3 v3.0.0-alpha9.3
+	github.com/urfave/cli/v3 v3.0.0-alpha9.5
 	go.elastic.co/apm/module/apmotel/v2 v2.6.2
 	go.elastic.co/apm/v2 v2.6.2
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.32.0
