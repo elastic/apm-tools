@@ -1,6 +1,7 @@
 module github.com/elastic/apm-tools
 
 go 1.22.1
+toolchain go1.22.10
 
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.16.0
@@ -17,7 +18,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.32.0
 	go.opentelemetry.io/otel/metric v1.32.0
 	go.opentelemetry.io/otel/sdk/metric v1.32.0
-	google.golang.org/grpc v1.67.1
+	google.golang.org/grpc v1.68.0
 )
 
 require (
