@@ -1,6 +1,7 @@
 module github.com/elastic/apm-tools
 
 go 1.23.6
+toolchain go1.24.1
 
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.17.1
@@ -10,7 +11,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
-	github.com/urfave/cli/v3 v3.0.0-beta1
+	github.com/urfave/cli/v3 v3.1.0
 	go.elastic.co/apm/module/apmotel/v2 v2.7.0
 	go.elastic.co/apm/v2 v2.7.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.35.0
