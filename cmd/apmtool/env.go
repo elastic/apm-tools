@@ -26,13 +26,13 @@ import (
 
 func (cmd *Commands) envCommand(ctx context.Context, c *cli.Command) error {
 	if cmd.cfg.ElasticsearchURL == "" {
-		return fmt.Errorf("Elasticsearch URL is not set")
+		return fmt.Errorf("elasticsearch URL is not set")
 	}
 	if cmd.cfg.Username == "" {
-		return fmt.Errorf("Elasticsearch username is not set")
+		return fmt.Errorf("elasticsearch username is not set")
 	}
 	if cmd.cfg.Password == "" {
-		return fmt.Errorf("Elasticsearch password is not set")
+		return fmt.Errorf("elasticsearch password is not set")
 	}
 
 	creds, err := cmd.getCredentials(ctx, c)
