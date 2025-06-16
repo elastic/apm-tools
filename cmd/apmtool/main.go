@@ -49,7 +49,7 @@ func main() {
 				Name:        "username",
 				Usage:       "set the Elasticsearch username",
 				Category:    "Elasticsearch",
-				Value:       "elastic",
+				Value:       "",
 				Sources:     cli.EnvVars("ELASTICSEARCH_USERNAME"),
 				Destination: &commands.cfg.Username,
 			},
