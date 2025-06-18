@@ -63,7 +63,7 @@ func (cmd *Commands) pollDocs(ctx context.Context, c *cli.Command) error {
 
 		target:  c.String("target"),
 		timeout: c.Duration("timeout"),
-		hits:    c.Uint("min-hits"),
+		hits:    c.Uint64("min-hits"),
 	}
 	query := c.String("query")
 	if query == "" {
