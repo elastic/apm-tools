@@ -3,7 +3,7 @@ module github.com/elastic/apm-tools
 go 1.24.0
 
 require (
-	github.com/elastic/go-elasticsearch/v8 v8.19.1
+	github.com/elastic/go-elasticsearch/v8 v8.19.2
 	github.com/fatih/color v1.18.0
 	github.com/gofrs/flock v0.13.0
 	github.com/google/go-cmp v0.7.0
