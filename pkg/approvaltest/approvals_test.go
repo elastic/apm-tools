@@ -132,6 +132,41 @@ func TestMergeSourceAndFields(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dotted_exact_keys_prefer_fields",
+			source: map[string]any{
+				"http": map[string]any{
+					"duration": map[string]any{
+						"counts": []any{float64(9), float64(9), float64(9)},
+						"values": []any{float64(9), float64(9), float64(9)},
+					},
+				},
+			},
+			fields: map[string][]any{
+				"http.duration.counts": {
+					float64(1),
+					float64(2),
+					float64(3),
+				},
+				"http.duration.values": {
+					float64(4),
+					float64(5),
+					float64(6),
+				},
+			},
+			want: map[string][]any{
+				"http.duration.counts": {
+					float64(1),
+					float64(2),
+					float64(3),
+				},
+				"http.duration.values": {
+					float64(4),
+					float64(5),
+					float64(6),
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
