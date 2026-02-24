@@ -110,7 +110,7 @@ func TestMergeSourceAndFields(t *testing.T) {
 					"duration": map[string]any{
 						"histogram": map[string]any{
 							"counts": []any{float64(1)},
-							"values": []any{float64(0)},
+							"values": []any{float64(10)},
 						},
 					},
 				},
@@ -118,16 +118,16 @@ func TestMergeSourceAndFields(t *testing.T) {
 			fields: map[string][]any{
 				"transaction.duration.histogram": {
 					map[string]any{
-						"counts": []any{float64(1)},
-						"values": []any{float64(0)},
+						"counts": []any{float64(1), float64(2), float64(3)},
+						"values": []any{float64(5), float64(10), float64(15)},
 					},
 				},
 			},
 			want: map[string][]any{
 				"transaction.duration.histogram": {
 					map[string]any{
-						"counts": []any{float64(1)},
-						"values": []any{float64(0)},
+						"counts": []any{float64(1), float64(2), float64(3)},
+						"values": []any{float64(5), float64(10), float64(15)},
 					},
 				},
 			},
