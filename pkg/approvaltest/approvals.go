@@ -92,6 +92,114 @@ func ApproveFields(t testing.TB, name string, hits []espoll.SearchHit, dynamic .
 	approveFields(t, filepath.Join("approvals", name), fields)
 }
 
+// ApproveFieldsSource compares the merged fields and _source values of the
+// search hits with the contents of the file in "approvals/<name>.approved.json".
+//
+// Dynamic fields (@timestamp, observer.id, etc.) are replaced
+// with a static string for comparison. Integration tests elsewhere
+// use canned data to test fields that we do not cover here.
+//
+// Unlike ApproveFields, this includes non-indexed values from _source.
+// If a field exists in both fields and _source, fields takes precedence.
+func ApproveFieldsSource(t testing.TB, name string, hits []espoll.SearchHit, dynamic ...string) {
+	t.Helper()
+
+	docs := make([][]byte, len(hits))
+	for i, hit := range hits {
+		merged, err := mergeFieldsAndSource(hit.Source, hit.Fields)
+		if err != nil {
+			t.Fatal(err)
+		}
+		docs[i] = merged
+	}
+	// Rewrite dynamic fields and sort them for repeatable diffs.
+	rewriteDynamic(t, docs, true, dynamic...)
+	sort.Slice(docs, func(i, j int) bool {
+		return compareDocumentFields(docs[i], docs[j]) < 0
+	})
+	approveFields(t, filepath.Join("approvals", name), docs)
+}
+
+// mergeFieldsAndSource builds one comparable document view for approvals by
+// combining "fields" and "_source". It prefers "fields" values because they
+// represent the query-visible data contract, and supplements them with
+// source-only values so approvals still cover non-indexed content.
+func mergeFieldsAndSource(source map[string]any, fields map[string][]any) (json.RawMessage, error) {
+	if source == nil {
+		source = make(map[string]any)
+	}
+	if fields == nil {
+		fields = make(map[string][]any)
+	}
+
+	merged := make(map[string][]any, len(fields))
+	for key, values := range fields {
+		merged[key] = values
+	}
+
+	sourceFields := make(map[string][]any)
+	flattenSourceFields("", source, sourceFields)
+	for key, values := range sourceFields {
+		if sourceFieldCoveredByFields(fields, key) {
+			continue
+		}
+		merged[key] = values
+	}
+
+	encoded, err := json.Marshal(merged)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal merged fields: %w", err)
+	}
+	return encoded, nil
+}
+
+// sourceFieldCoveredByFields decides whether a flattened _source key should be
+// ignored because "fields" already represents that value. This keeps merged
+// output stable when Elasticsearch returns an object as a parent field key.
+func sourceFieldCoveredByFields(fields map[string][]any, key string) bool {
+	if _, exists := fields[key]; exists {
+		return true
+	}
+	// If fields contains a parent object key, ignore flattened children
+	// from _source (e.g. transaction.duration.histogram vs ...histogram.counts).
+	for i := strings.LastIndex(key, "."); i >= 0; i = strings.LastIndex(key[:i], ".") {
+		if _, exists := fields[key[:i]]; exists {
+			return true
+		}
+	}
+	return false
+}
+
+// flattenSourceFields normalizes nested _source content into dotted keys so it
+// can be compared with the flattened "fields" representation. It preserves
+// empty arrays to distinguish explicitly empty values from missing fields.
+func flattenSourceFields(k string, v any, out map[string][]any) {
+	switch v := v.(type) {
+	case map[string]any:
+		for k2, v := range v {
+			if k != "" {
+				k2 = k + "." + k2
+			}
+			flattenSourceFields(k2, v, out)
+		}
+	case []any:
+		if len(v) == 0 {
+			if k != "" {
+				out[k] = []any{}
+			}
+			return
+		}
+		for _, v := range v {
+			flattenSourceFields(k, v, out)
+		}
+	default:
+		if k == "" {
+			return
+		}
+		out[k] = append(out[k], v)
+	}
+}
+
 // rewriteDynamic rewrites all dynamic fields to have a known value, so dynamic
 // fields don't affect diffs. The flattenedKeys parameter defines how the
 // field should be queried in the source, if flattenedKeys is passed as true
