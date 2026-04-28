@@ -58,6 +58,11 @@ type item struct {
 // numbers map to "long" and non-integer numbers map to "float" (e.g.
 // apm-server.sampling.tail.storage.disk_usage_threshold_pct = 0.8); strings
 // (e.g. libbeat.output.type = "elasticsearch") map to "keyword".
+//
+// goType cannot distinguish a counter from a gauge: /stats carries values
+// only, with no kind metadata. Counter/gauge is therefore not this tool's
+// responsibility; see README "Gauge vs counter" for how the EA file's
+// metric_type: annotations are handled.
 func goType(v any) (string, error) {
 	switch v := v.(type) {
 	case float64:

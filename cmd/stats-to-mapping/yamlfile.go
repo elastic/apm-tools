@@ -89,12 +89,23 @@ func modifyBeatStats(path string, stats []byte) error {
 //   - name: beat.stats
 //     fields:
 //   - name: apm_server          <-- upsert target indent = 4
+//
+// The Elastic Agent integration package is installed onto a TSDB data stream
+// (manifest.yml: elasticsearch.index_mode: time_series). On a TSDB stream
+// each numeric field needs a metric_type: gauge|counter annotation, which
+// Fleet/EPM translates into the time_series_metric mapping parameter; that
+// parameter drives downsampling semantics. /stats carries values only, so
+// this tool cannot derive gauge vs counter from the JSON. The EA file thus
+// has metricType: retain — existing annotations are carried forward by name
+// match, and brand-new fields are emitted with metric_type: FIXME so a
+// human has to choose before the regen output is committed upstream.
 func modifyEAFields(path string, stats []byte) error {
 	return upsertYAML(path, stats, yamlPlan{
 		path:          []yamlPathStep{{key: "name", value: "beat.stats"}},
 		childIndent:   4,
 		alias:         false,
 		nameTransform: underscoreName,
+		metricType:    metricTypeRetain,
 	})
 }
 
@@ -115,7 +126,20 @@ type yamlPlan struct {
 	// nameTransform converts a metric key (e.g. "apm-server") into the YAML
 	// name used inside the file (e.g. "apm_server" for beat.stats variants).
 	nameTransform func(string) string
+
+	// metricType controls whether typed leaves carry a metric_type:
+	// annotation. metricTypeOmit (the default) leaves the annotation off
+	// entirely. metricTypeRetain copies the annotation from the existing
+	// entry at the same dotted path, or emits "FIXME" for brand-new fields.
+	metricType metricTypePolicy
 }
+
+type metricTypePolicy int
+
+const (
+	metricTypeOmit metricTypePolicy = iota
+	metricTypeRetain
+)
 
 type yamlPathStep struct {
 	key   string // "key" or "name"
@@ -150,8 +174,21 @@ func upsertYAML(path string, stats []byte, plan yamlPlan) error {
 			warnMissing(m, path)
 			continue
 		}
+		// When metricType: retain, look at the existing entry being
+		// replaced and carry forward its metric_type annotations by
+		// dotted path. New fields get metric_type: FIXME.
+		var existingMetricTypes map[string]string
+		if plan.metricType == metricTypeRetain {
+			for _, it := range items {
+				if it.name == yamlName {
+					existingMetricTypes = extractMetricTypes(it.body)
+					break
+				}
+			}
+		}
 		var rendered bytes.Buffer
-		renderItem(&rendered, item{Name: yamlName, Type: "group", Fields: fields}, plan.childIndent)
+		renderItem(&rendered, item{Name: yamlName, Type: "group", Fields: fields},
+			plan.childIndent, plan.metricType, existingMetricTypes, "")
 		items = upsertListItem(items, yamlName, rendered.Bytes())
 	}
 
@@ -231,10 +268,20 @@ func upsertListItem(items []listItem, name string, replacement []byte) []listIte
 // renderItem emits a YAML block-sequence entry for it at the given dash
 // column. The indentation pattern (children at +4) mirrors the post-strip
 // output of ruamel.yaml configured with mapping=2, sequence=4, offset=2.
-func renderItem(buf *bytes.Buffer, it item, indent int) {
+//
+// When mt == metricTypeRetain, typed leaves are followed by a metric_type:
+// line whose value is looked up by dotted path in retain (the snapshot of
+// the existing entry being replaced). Leaves with no prior annotation get
+// "FIXME". groups and aliases never carry metric_type. parentPath is the
+// dotted path of the parent group, "" for the top-level entry.
+func renderItem(buf *bytes.Buffer, it item, indent int, mt metricTypePolicy, retain map[string]string, parentPath string) {
 	pad := strings.Repeat(" ", indent)
 	cont := strings.Repeat(" ", indent+2)
 	fmt.Fprintf(buf, "%s- name: %s\n", pad, it.Name)
+	fullPath := it.Name
+	if parentPath != "" {
+		fullPath = parentPath + "." + it.Name
+	}
 	switch it.Type {
 	case "alias":
 		fmt.Fprintf(buf, "%stype: alias\n", cont)
@@ -243,11 +290,90 @@ func renderItem(buf *bytes.Buffer, it item, indent int) {
 		fmt.Fprintf(buf, "%stype: group\n", cont)
 		fmt.Fprintf(buf, "%sfields:\n", cont)
 		for _, child := range it.Fields {
-			renderItem(buf, child, indent+4)
+			renderItem(buf, child, indent+4, mt, retain, fullPath)
 		}
 	default:
 		fmt.Fprintf(buf, "%stype: %s\n", cont, it.Type)
+		if mt == metricTypeRetain {
+			value, ok := retain[fullPath]
+			if !ok {
+				value = "FIXME"
+			}
+			fmt.Fprintf(buf, "%smetric_type: %s\n", cont, value)
+		}
 	}
+}
+
+// extractMetricTypes scans entry — the bytes of a single block-sequence
+// item written in the same layout this tool emits — and returns a map of
+// dotted leaf path to metric_type value for every typed (non-group,
+// non-alias) leaf that carried a metric_type: annotation. Group and alias
+// entries are skipped because metric_type only applies to numeric leaves.
+//
+// The scanner relies on the file's strict 4-column-per-level indent and
+// "type:" / "metric_type:" siblings appearing at +2 from their owning
+// "- name:" line. It does not parse YAML in general; it only handles the
+// shape this tool itself produces.
+func extractMetricTypes(entry []byte) map[string]string {
+	out := map[string]string{}
+	type frame struct {
+		name, ftype, metric string
+		dashCol             int
+	}
+	var stack []frame
+
+	record := func(f frame) {
+		if f.ftype == "" || f.ftype == "group" || f.ftype == "alias" {
+			return
+		}
+		if f.metric == "" {
+			return
+		}
+		parts := make([]string, 0, len(stack)+1)
+		for _, p := range stack {
+			parts = append(parts, p.name)
+		}
+		parts = append(parts, f.name)
+		out[strings.Join(parts, ".")] = f.metric
+	}
+
+	closeTo := func(col int) {
+		for len(stack) > 0 && stack[len(stack)-1].dashCol >= col {
+			top := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			record(top)
+		}
+	}
+
+	for _, line := range bytes.Split(entry, []byte{'\n'}) {
+		s := string(line)
+		col := 0
+		for col < len(s) && s[col] == ' ' {
+			col++
+		}
+		if col == len(s) {
+			continue
+		}
+		rest := s[col:]
+		switch {
+		case strings.HasPrefix(rest, "- name: "):
+			closeTo(col)
+			stack = append(stack, frame{
+				name:    unquoteYAMLScalar(strings.TrimSpace(rest[len("- name: "):])),
+				dashCol: col,
+			})
+		case strings.HasPrefix(rest, "type: "):
+			if n := len(stack); n > 0 {
+				stack[n-1].ftype = strings.TrimSpace(rest[len("type: "):])
+			}
+		case strings.HasPrefix(rest, "metric_type: "):
+			if n := len(stack); n > 0 {
+				stack[n-1].metric = strings.TrimSpace(rest[len("metric_type: "):])
+			}
+		}
+	}
+	closeTo(0)
+	return out
 }
 
 // locateFieldsList walks plan.path through the document and returns the

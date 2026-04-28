@@ -25,13 +25,23 @@ curl -s http://localhost:5066/stats > apm-server.stats.json
   ~/projects/elasticsearch/x-pack/plugin/core/template-resources/src/main/resources/monitoring-beats-mb.json \
   ~/projects/beats/metricbeat/module/beat/_meta/fields.yml \
   ~/projects/beats/metricbeat/module/beat/stats/_meta/fields.yml \
-  ~/projects/integrations/packages/elastic_agent/data_stream/apm_server_metrics/fields/beat-fields.yml \
+  ~/projects/integrations/packages/elastic_agent/data_stream/apm_server_metrics/fields/beat-stats-fields.yml \
   < apm-server.stats.json
 ```
 
 Each path is dispatched by basename or path suffix. Anything else is
 rejected. Modifications are in place; review the resulting `git diff` per
 upstream checkout and submit per-repo PRs.
+
+> [!IMPORTANT]
+> The tool does not, and cannot, decide whether a metric is a counter or a
+> gauge. `/stats` carries values only — the JSON `5` is the same shape
+> whether the field is a monotonic counter or an instantaneous gauge. The
+> tool retains existing `metric_type:` annotations by name match (see
+> below) and writes `metric_type: FIXME` for any newly added field;
+> a human must replace each `FIXME` with `gauge` or `counter` before the
+> Integrations PR can be merged. See [Gauge vs counter](#gauge-vs-counter)
+> below.
 
 ## Supported files
 
@@ -69,6 +79,34 @@ no output configured or no traffic), the tool prints a one-line note to
 stderr and leaves the corresponding upstream entries unchanged for that
 metric. Scalar string values like `libbeat.output.type = "elasticsearch"`
 are emitted as `keyword` fields.
+
+## Gauge vs counter
+
+The Elastic Agent integration package is installed onto a [TSDB data
+stream](https://www.elastic.co/guide/en/elasticsearch/reference/current/tsds.html);
+its [`manifest.yml`](https://github.com/elastic/integrations/blob/main/packages/elastic_agent/data_stream/apm_server_metrics/manifest.yml)
+sets `elasticsearch.index_mode: time_series`. On a TSDB stream each
+numeric field needs a `metric_type: gauge|counter` annotation in the
+package fields YAML; Fleet/EPM translates that into the ES
+[`time_series_metric`](https://www.elastic.co/guide/en/elasticsearch/reference/current/tsds.html#time-series-metric)
+mapping parameter, which drives [downsampling
+semantics](https://www.elastic.co/guide/en/elasticsearch/reference/current/downsampling.html)
+(`gauge` aggregates as min/max/sum/value_count; `counter` keeps
+last-value).
+
+`/stats` cannot tell the tool whether a field is a counter or a gauge —
+the JSON only carries the value. The tool therefore handles `metric_type:`
+in two ways for the EA file:
+
+- **Existing field**: if an entry with the same dotted path already exists
+  in the target file with a `metric_type:` line, the tool preserves that
+  value verbatim.
+- **New field**: emits `metric_type: FIXME`. Search the resulting diff for
+  `FIXME` and replace each with `gauge` or `counter` (and ideally
+  `description:`) before opening the upstream PR.
+
+The four other target files do not carry `metric_type:` annotations; the
+tool does not introduce any to them.
 
 ## Tests
 
