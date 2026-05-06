@@ -1458,8 +1458,37 @@
                 },
                 "output": {
                   "properties": {
+                    "events": {
+                      "properties": {
+                        "acked": {
+                          "type": "long"
+                        },
+                        "active": {
+                          "type": "long"
+                        },
+                        "batches": {
+                          "type": "long"
+                        },
+                        "failed": {
+                          "type": "long"
+                        },
+                        "toomany": {
+                          "type": "long"
+                        },
+                        "total": {
+                          "type": "long"
+                        }
+                      }
+                    },
                     "type": {
                       "type": "keyword"
+                    },
+                    "write": {
+                      "properties": {
+                        "bytes": {
+                          "type": "long"
+                        }
+                      }
                     }
                   }
                 }

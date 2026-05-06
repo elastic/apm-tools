@@ -1529,8 +1529,37 @@
                 },
                 "output": {
                   "properties": {
+                    "events": {
+                      "properties": {
+                        "acked": {
+                          "type": "long"
+                        },
+                        "active": {
+                          "type": "long"
+                        },
+                        "batches": {
+                          "type": "long"
+                        },
+                        "failed": {
+                          "type": "long"
+                        },
+                        "toomany": {
+                          "type": "long"
+                        },
+                        "total": {
+                          "type": "long"
+                        }
+                      }
+                    },
                     "type": {
                       "type": "keyword"
+                    },
+                    "write": {
+                      "properties": {
+                        "bytes": {
+                          "type": "long"
+                        }
+                      }
                     }
                   }
                 }
@@ -3320,9 +3349,45 @@
                 },
                 "output": {
                   "properties": {
+                    "events": {
+                      "properties": {
+                        "acked": {
+                          "type": "alias",
+                          "path": "beat.stats.output.events.acked"
+                        },
+                        "active": {
+                          "type": "alias",
+                          "path": "beat.stats.output.events.active"
+                        },
+                        "batches": {
+                          "type": "alias",
+                          "path": "beat.stats.output.events.batches"
+                        },
+                        "failed": {
+                          "type": "alias",
+                          "path": "beat.stats.output.events.failed"
+                        },
+                        "toomany": {
+                          "type": "alias",
+                          "path": "beat.stats.output.events.toomany"
+                        },
+                        "total": {
+                          "type": "alias",
+                          "path": "beat.stats.output.events.total"
+                        }
+                      }
+                    },
                     "type": {
                       "type": "alias",
                       "path": "beat.stats.output.type"
+                    },
+                    "write": {
+                      "properties": {
+                        "bytes": {
+                          "type": "alias",
+                          "path": "beat.stats.output.write.bytes"
+                        }
+                      }
                     }
                   }
                 }

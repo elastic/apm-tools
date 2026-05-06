@@ -1105,9 +1105,33 @@
         - name: output
           type: group
           fields:
+            - name: events
+              type: group
+              fields:
+                - name: acked
+                  type: alias
+                  path: beat.stats.output.events.acked
+                - name: active
+                  type: alias
+                  path: beat.stats.output.events.active
+                - name: batches
+                  type: alias
+                  path: beat.stats.output.events.batches
+                - name: failed
+                  type: alias
+                  path: beat.stats.output.events.failed
+                - name: toomany
+                  type: alias
+                  path: beat.stats.output.events.toomany
+                - name: total
+                  type: alias
+                  path: beat.stats.output.events.total
             - name: type
               type: alias
               path: beat.stats.output.type
+            - name: write.bytes
+              type: alias
+              path: beat.stats.output.write.bytes
     - name: beats_state
       type: group
       fields:

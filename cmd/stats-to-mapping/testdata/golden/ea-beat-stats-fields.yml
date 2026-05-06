@@ -1169,6 +1169,30 @@
     - name: output
       type: group
       fields:
+        - name: events
+          type: group
+          fields:
+            - name: acked
+              type: long
+              metric_type: FIXME
+            - name: active
+              type: long
+              metric_type: FIXME
+            - name: batches
+              type: long
+              metric_type: FIXME
+            - name: failed
+              type: long
+              metric_type: FIXME
+            - name: toomany
+              type: long
+              metric_type: FIXME
+            - name: total
+              type: long
+              metric_type: FIXME
         - name: type
           type: keyword
+          metric_type: FIXME
+        - name: write.bytes
+          type: long
           metric_type: FIXME
