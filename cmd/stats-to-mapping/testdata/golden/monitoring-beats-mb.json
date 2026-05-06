@@ -285,6 +285,98 @@
                         }
                       }
                     },
+                    "jaeger": {
+                      "properties": {
+                        "grpc": {
+                          "properties": {
+                            "collect": {
+                              "properties": {
+                                "request": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    }
+                                  }
+                                },
+                                "response": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    },
+                                    "errors": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        },
+                                        "ratelimit": {
+                                          "type": "long"
+                                        },
+                                        "timeout": {
+                                          "type": "long"
+                                        },
+                                        "unauthorized": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    },
+                                    "valid": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "sampling": {
+                              "properties": {
+                                "event": {
+                                  "properties": {
+                                    "received": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "request": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    }
+                                  }
+                                },
+                                "response": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    },
+                                    "errors": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    },
+                                    "valid": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
                     "otlp": {
                       "properties": {
                         "grpc": {
@@ -1053,6 +1145,9 @@
                                 "closed": {
                                   "type": "long"
                                 },
+                                "concurrency": {
+                                  "type": "long"
+                                },
                                 "count": {
                                   "type": "long"
                                 },
@@ -1529,6 +1624,33 @@
                 },
                 "output": {
                   "properties": {
+                    "elasticsearch": {
+                      "properties": {
+                        "bulk_requests": {
+                          "properties": {
+                            "available": {
+                              "type": "long"
+                            },
+                            "completed": {
+                              "type": "long"
+                            }
+                          }
+                        },
+                        "indexers": {
+                          "properties": {
+                            "active": {
+                              "type": "long"
+                            },
+                            "created": {
+                              "type": "long"
+                            },
+                            "destroyed": {
+                              "type": "long"
+                            }
+                          }
+                        }
+                      }
+                    },
                     "events": {
                       "properties": {
                         "acked": {
@@ -1874,6 +1996,110 @@
                                 "unavailable": {
                                   "type": "alias",
                                   "path": "beat.stats.apm_server.agentcfg.elasticsearch.fetch.unavailable"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "jaeger": {
+                      "properties": {
+                        "grpc": {
+                          "properties": {
+                            "collect": {
+                              "properties": {
+                                "request": {
+                                  "properties": {
+                                    "count": {
+                                      "path": "beat.stats.apm_server.jaeger.grpc.collect.request.count",
+                                      "type": "alias"
+                                    }
+                                  }
+                                },
+                                "response": {
+                                  "properties": {
+                                    "count": {
+                                      "path": "beat.stats.apm_server.jaeger.grpc.collect.response.count",
+                                      "type": "alias"
+                                    },
+                                    "errors": {
+                                      "properties": {
+                                        "count": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.collect.response.errors.count",
+                                          "type": "alias"
+                                        },
+                                        "ratelimit": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.collect.response.errors.ratelimit",
+                                          "type": "alias"
+                                        },
+                                        "timeout": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.collect.response.errors.timeout",
+                                          "type": "alias"
+                                        },
+                                        "unauthorized": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.collect.response.errors.unauthorized",
+                                          "type": "alias"
+                                        }
+                                      }
+                                    },
+                                    "valid": {
+                                      "properties": {
+                                        "count": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.collect.response.valid.count",
+                                          "type": "alias"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "sampling": {
+                              "properties": {
+                                "event": {
+                                  "properties": {
+                                    "received": {
+                                      "properties": {
+                                        "count": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.sampling.event.received.count",
+                                          "type": "alias"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "request": {
+                                  "properties": {
+                                    "count": {
+                                      "path": "beat.stats.apm_server.jaeger.grpc.sampling.request.count",
+                                      "type": "alias"
+                                    }
+                                  }
+                                },
+                                "response": {
+                                  "properties": {
+                                    "count": {
+                                      "path": "beat.stats.apm_server.jaeger.grpc.sampling.response.count",
+                                      "type": "alias"
+                                    },
+                                    "errors": {
+                                      "properties": {
+                                        "count": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.sampling.response.errors.count",
+                                          "type": "alias"
+                                        }
+                                      }
+                                    },
+                                    "valid": {
+                                      "properties": {
+                                        "count": {
+                                          "path": "beat.stats.apm_server.jaeger.grpc.sampling.response.valid.count",
+                                          "type": "alias"
+                                        }
+                                      }
+                                    }
+                                  }
                                 }
                               }
                             }
@@ -2831,6 +3057,10 @@
                                   "type": "alias",
                                   "path": "beat.stats.apm_server.server.response.errors.closed"
                                 },
+                                "concurrency": {
+                                  "path": "beat.stats.apm_server.server.response.errors.concurrency",
+                                  "type": "alias"
+                                },
                                 "count": {
                                   "type": "alias",
                                   "path": "beat.stats.apm_server.server.response.errors.count"
@@ -3349,6 +3579,38 @@
                 },
                 "output": {
                   "properties": {
+                    "elasticsearch": {
+                      "properties": {
+                        "bulk_requests": {
+                          "properties": {
+                            "available": {
+                              "path": "beat.stats.output.elasticsearch.bulk_requests.available",
+                              "type": "alias"
+                            },
+                            "completed": {
+                              "path": "beat.stats.output.elasticsearch.bulk_requests.completed",
+                              "type": "alias"
+                            }
+                          }
+                        },
+                        "indexers": {
+                          "properties": {
+                            "active": {
+                              "path": "beat.stats.output.elasticsearch.indexers.active",
+                              "type": "alias"
+                            },
+                            "created": {
+                              "path": "beat.stats.output.elasticsearch.indexers.created",
+                              "type": "alias"
+                            },
+                            "destroyed": {
+                              "path": "beat.stats.output.elasticsearch.indexers.destroyed",
+                              "type": "alias"
+                            }
+                          }
+                        }
+                      }
+                    },
                     "events": {
                       "properties": {
                         "acked": {

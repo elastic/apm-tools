@@ -323,6 +323,60 @@
     - name: apm_server
       type: group
       fields:
+        - name: sampling
+          type: group
+          fields:
+            - name: tail
+              type: group
+              fields:
+                - name: events
+                  type: group
+                  fields:
+                    - name: dropped
+                      type: long
+                      metric_type: counter
+                    - name: failed_writes
+                      type: long
+                      metric_type: counter
+                    - name: head_unsampled
+                      type: long
+                      metric_type: counter
+                    - name: processed
+                      type: long
+                      metric_type: counter
+                    - name: sampled
+                      type: long
+                      metric_type: counter
+                    - name: stored
+                      type: long
+                      metric_type: counter
+                - name: dynamic_service_groups
+                  type: long
+                  metric_type: FIXME
+                - name: storage
+                  type: group
+                  fields:
+                    - name: disk_total
+                      type: long
+                      metric_type: gauge
+                    - name: disk_usage_threshold_pct
+                      type: float
+                      metric_type: gauge
+                    - name: disk_used
+                      type: long
+                      metric_type: gauge
+                    - name: lsm_size
+                      type: long
+                      metric_type: gauge
+                    - name: storage_limit
+                      type: long
+                      metric_type: gauge
+                    - name: value_log_size
+                      type: long
+                      metric_type: gauge
+            - name: transactions_dropped
+              type: long
+              metric_type: counter
         - name: acm
           type: group
           fields:
@@ -1034,60 +1088,6 @@
             - name: unset
               type: long
               metric_type: FIXME
-        - name: sampling
-          type: group
-          fields:
-            - name: tail
-              type: group
-              fields:
-                - name: dynamic_service_groups
-                  type: long
-                  metric_type: FIXME
-                - name: events
-                  type: group
-                  fields:
-                    - name: dropped
-                      type: long
-                      metric_type: counter
-                    - name: failed_writes
-                      type: long
-                      metric_type: counter
-                    - name: head_unsampled
-                      type: long
-                      metric_type: counter
-                    - name: processed
-                      type: long
-                      metric_type: counter
-                    - name: sampled
-                      type: long
-                      metric_type: counter
-                    - name: stored
-                      type: long
-                      metric_type: counter
-                - name: storage
-                  type: group
-                  fields:
-                    - name: disk_total
-                      type: long
-                      metric_type: gauge
-                    - name: disk_usage_threshold_pct
-                      type: float
-                      metric_type: gauge
-                    - name: disk_used
-                      type: long
-                      metric_type: gauge
-                    - name: lsm_size
-                      type: long
-                      metric_type: gauge
-                    - name: storage_limit
-                      type: long
-                      metric_type: gauge
-                    - name: value_log_size
-                      type: long
-                      metric_type: gauge
-            - name: transactions_dropped
-              type: long
-              metric_type: counter
         - name: server
           type: group
           fields:

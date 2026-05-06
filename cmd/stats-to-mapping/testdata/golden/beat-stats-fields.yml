@@ -69,6 +69,20 @@
             - name: elasticsearch
               type: group
               fields:
+                - name: cache.entries.count
+                  type: long
+                - name: cache.refresh.failures
+                  type: long
+                - name: cache.refresh.successes
+                  type: long
+                - name: fetch.es
+                  type: long
+                - name: fetch.fallback
+                  type: long
+                - name: fetch.invalid
+                  type: long
+                - name: fetch.unavailable
+                  type: long
                 - name: cache
                   type: group
                   fields:
@@ -92,6 +106,51 @@
                       type: long
                     - name: unavailable
                       type: long
+        - name: jaeger
+          type: group
+          fields:
+            - name: grpc
+              type: group
+              fields:
+                - name: collect
+                  type: group
+                  fields:
+                    - name: request.count
+                      type: long
+                    - name: response
+                      type: group
+                      fields:
+                        - name: count
+                          type: long
+                        - name: errors
+                          type: group
+                          fields:
+                            - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                        - name: valid.count
+                          type: long
+                - name: sampling
+                  type: group
+                  fields:
+                    - name: event.received.count
+                      type: long
+                    - name: request.count
+                      type: long
+                    - name: response
+                      type: group
+                      fields:
+                        - name: count
+                          type: long
+                        - name: errors.count
+                          type: long
+                        - name: valid.count
+                          type: long
         - name: otlp
           type: group
           fields:
@@ -111,9 +170,15 @@
                         - name: errors
                           type: group
                           fields:
-                            - name: closed
-                              type: long
                             - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                            - name: closed
                               type: long
                             - name: decode
                               type: long
@@ -129,18 +194,14 @@
                               type: long
                             - name: queue
                               type: long
-                            - name: ratelimit
-                              type: long
-                            - name: timeout
-                              type: long
                             - name: toolarge
-                              type: long
-                            - name: unauthorized
                               type: long
                             - name: unavailable
                               type: long
                             - name: validate
                               type: long
+                        - name: valid.count
+                          type: long
                         - name: valid
                           type: group
                           fields:
@@ -169,9 +230,15 @@
                         - name: errors
                           type: group
                           fields:
-                            - name: closed
-                              type: long
                             - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                            - name: closed
                               type: long
                             - name: decode
                               type: long
@@ -187,18 +254,14 @@
                               type: long
                             - name: queue
                               type: long
-                            - name: ratelimit
-                              type: long
-                            - name: timeout
-                              type: long
                             - name: toolarge
-                              type: long
-                            - name: unauthorized
                               type: long
                             - name: unavailable
                               type: long
                             - name: validate
                               type: long
+                        - name: valid.count
+                          type: long
                         - name: valid
                           type: group
                           fields:
@@ -225,9 +288,15 @@
                         - name: errors
                           type: group
                           fields:
-                            - name: closed
-                              type: long
                             - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                            - name: closed
                               type: long
                             - name: decode
                               type: long
@@ -243,18 +312,14 @@
                               type: long
                             - name: queue
                               type: long
-                            - name: ratelimit
-                              type: long
-                            - name: timeout
-                              type: long
                             - name: toolarge
-                              type: long
-                            - name: unauthorized
                               type: long
                             - name: unavailable
                               type: long
                             - name: validate
                               type: long
+                        - name: valid.count
+                          type: long
                         - name: valid
                           type: group
                           fields:
@@ -284,9 +349,15 @@
                         - name: errors
                           type: group
                           fields:
-                            - name: closed
-                              type: long
                             - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                            - name: closed
                               type: long
                             - name: decode
                               type: long
@@ -302,18 +373,14 @@
                               type: long
                             - name: queue
                               type: long
-                            - name: ratelimit
-                              type: long
-                            - name: timeout
-                              type: long
                             - name: toolarge
-                              type: long
-                            - name: unauthorized
                               type: long
                             - name: unavailable
                               type: long
                             - name: validate
                               type: long
+                        - name: valid.count
+                          type: long
                         - name: valid
                           type: group
                           fields:
@@ -342,9 +409,15 @@
                         - name: errors
                           type: group
                           fields:
-                            - name: closed
-                              type: long
                             - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                            - name: closed
                               type: long
                             - name: decode
                               type: long
@@ -360,18 +433,14 @@
                               type: long
                             - name: queue
                               type: long
-                            - name: ratelimit
-                              type: long
-                            - name: timeout
-                              type: long
                             - name: toolarge
-                              type: long
-                            - name: unauthorized
                               type: long
                             - name: unavailable
                               type: long
                             - name: validate
                               type: long
+                        - name: valid.count
+                          type: long
                         - name: valid
                           type: group
                           fields:
@@ -398,9 +467,15 @@
                         - name: errors
                           type: group
                           fields:
-                            - name: closed
-                              type: long
                             - name: count
+                              type: long
+                            - name: ratelimit
+                              type: long
+                            - name: timeout
+                              type: long
+                            - name: unauthorized
+                              type: long
+                            - name: closed
                               type: long
                             - name: decode
                               type: long
@@ -416,18 +491,14 @@
                               type: long
                             - name: queue
                               type: long
-                            - name: ratelimit
-                              type: long
-                            - name: timeout
-                              type: long
                             - name: toolarge
-                              type: long
-                            - name: unauthorized
                               type: long
                             - name: unavailable
                               type: long
                             - name: validate
                               type: long
+                        - name: valid.count
+                          type: long
                         - name: valid
                           type: group
                           fields:
@@ -446,8 +517,6 @@
           fields:
             - name: error.transformations
               type: long
-            - name: log.transformations
-              type: long
             - name: metric.transformations
               type: long
             - name: span.transformations
@@ -465,6 +534,8 @@
                     - name: toolarge
                       type: long
             - name: transaction.transformations
+              type: long
+            - name: log.transformations
               type: long
             - name: undefined.transformations
               type: long
@@ -550,18 +621,18 @@
                 - name: storage
                   type: group
                   fields:
+                    - name: lsm_size
+                      type: long
+                    - name: value_log_size
+                      type: long
+                    - name: storage_limit
+                      type: long
+                    - name: disk_used
+                      type: long
                     - name: disk_total
                       type: long
                     - name: disk_usage_threshold_pct
                       type: float
-                    - name: disk_used
-                      type: long
-                    - name: lsm_size
-                      type: long
-                    - name: storage_limit
-                      type: long
-                    - name: value_log_size
-                      type: long
             - name: transactions_dropped
               type: long
         - name: server
@@ -946,6 +1017,25 @@
     - name: output
       type: group
       fields:
+        - name: elasticsearch
+          type: group
+          fields:
+            - name: bulk_requests
+              type: group
+              fields:
+                - name: available
+                  type: long
+                - name: completed
+                  type: long
+            - name: indexers
+              type: group
+              fields:
+                - name: active
+                  type: long
+                - name: created
+                  type: long
+                - name: destroyed
+                  type: long
         - name: events
           type: group
           fields:

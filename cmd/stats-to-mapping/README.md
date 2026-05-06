@@ -60,11 +60,23 @@ Both YAML and JSON modifications are byte-spliced: only the target subtree
 rewritten. Every byte outside those entries — comments, quoting, sibling
 keys, the version placeholder in the JSON templates — is preserved verbatim.
 
-Within the spliced subtree, JSON keys are emitted in alphabetical order
+Within each rewritten subtree, the new fields from `/stats` are **merged**
+into the existing upstream subtree rather than replacing it. Entries that
+only exist upstream (e.g. fields removed from `/stats` after a metric
+rename or feature removal — `agentcfg.elasticsearch.cache.entries.count`,
+the `jaeger.*` subtree, etc.) are kept; entries that only exist in
+`/stats` are added; entries that exist in both are recursed into when
+they're groups, and overwritten with the new typing when they're leaves.
+This keeps long-deprecated fields documented downstream without requiring
+a flag day in upstream PRs whenever apm-server drops a metric.
+
+Within the merged subtree, JSON keys are emitted in alphabetical order
 (stdlib `encoding/json`); alias entries emit `{type, path}` via a typed
-struct so field order matches the upstream Python reference. YAML emission
-follows the upstream conventions of those repos (4-column indent per
-nesting level, dashes at parent_col+2, mapping body at dash+2).
+struct so field order matches the upstream Python reference. YAML
+emission follows the upstream conventions of those repos (4-column
+indent per nesting level, dashes at parent_col+2, mapping body at
+dash+2). YAML preserves existing entry order at every level: upstream
+entries keep their position, new entries from `/stats` append after.
 
 ## Stats input shape
 
