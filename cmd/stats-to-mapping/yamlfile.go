@@ -178,16 +178,20 @@ func upsertYAML(path string, stats []byte, plan yamlPlan) error {
 		// replaced and carry forward its metric_type annotations by
 		// dotted path. New fields get metric_type: FIXME.
 		var existingMetricTypes map[string]string
-		if plan.metricType == metricTypeRetain {
-			for _, it := range items {
-				if it.name == yamlName {
-					existingMetricTypes = extractMetricTypes(it.body)
-					break
-				}
+		var existingFields []item
+		for _, it := range items {
+			if it.name != yamlName {
+				continue
 			}
+			if plan.metricType == metricTypeRetain {
+				existingMetricTypes = extractMetricTypes(it.body)
+			}
+			existingFields = parseEntryFields(it.body, plan.childIndent)
+			break
 		}
+		merged := mergeFields(existingFields, fields)
 		var rendered bytes.Buffer
-		renderItem(&rendered, item{Name: yamlName, Type: "group", Fields: fields},
+		renderItem(&rendered, item{Name: yamlName, Type: "group", Fields: merged},
 			plan.childIndent, plan.metricType, existingMetricTypes, "")
 		items = upsertListItem(items, yamlName, rendered.Bytes())
 	}
@@ -302,6 +306,124 @@ func renderItem(buf *bytes.Buffer, it item, indent int, mt metricTypePolicy, ret
 			fmt.Fprintf(buf, "%smetric_type: %s\n", cont, value)
 		}
 	}
+}
+
+// parseEntryFields scans entry — the bytes of a single block-sequence
+// item written in the layout this tool emits — and returns the []item
+// tree for the entry's nested "fields:" list. baseDashCol is the
+// column of the entry's leading dash. Returns nil for leaf or alias
+// entries (no nested fields) and for groups whose fields list is
+// missing or empty.
+//
+// Only handles the shape renderItem produces: each child entry begins
+// with "- name:" at column baseDashCol+4, followed by "type:" at +6
+// and either "fields:" (for groups), "path:" (for aliases), or
+// nothing else (for scalar leaves). metric_type lines are tolerated
+// and ignored — they're collected separately by extractMetricTypes.
+func parseEntryFields(entry []byte, baseDashCol int) []item {
+	lines := bytes.Split(entry, []byte{'\n'})
+	p := &yamlEntryParser{lines: lines}
+	// Skip past the entry's own "- name:" / "type: group" / "fields:"
+	// lines to position the parser at the first child entry.
+	for p.pos < len(p.lines) {
+		line := p.lines[p.pos]
+		p.pos++
+		if bytes.HasPrefix(bytes.TrimLeft(line, " "), []byte("fields:")) {
+			break
+		}
+	}
+	return p.parseFieldsAt(baseDashCol + 4)
+}
+
+// yamlEntryParser is a line-based parser for the YAML shape this tool
+// emits. It is intentionally narrow: it does not implement YAML, only
+// the strict layout renderItem produces.
+type yamlEntryParser struct {
+	lines [][]byte
+	pos   int
+}
+
+func (p *yamlEntryParser) parseFieldsAt(dashCol int) []item {
+	var out []item
+	for p.pos < len(p.lines) {
+		line := p.lines[p.pos]
+		col := leadingSpaces(line)
+		if col == len(line) {
+			p.pos++
+			continue
+		}
+		if col < dashCol {
+			// Shallower than this list's items; we've reached the end
+			// of the list (or popped past it).
+			return out
+		}
+		if col > dashCol {
+			// Deeper indent than any sibling at dashCol — folded-scalar
+			// continuation of a previous leaf's description, or some
+			// other content this parser doesn't model. Skip the line.
+			p.pos++
+			continue
+		}
+		rest := line[col:]
+		if !bytes.HasPrefix(rest, []byte("- name: ")) {
+			return out
+		}
+		out = append(out, p.parseEntry(dashCol))
+	}
+	return out
+}
+
+func (p *yamlEntryParser) parseEntry(dashCol int) item {
+	line := p.lines[p.pos]
+	name := unquoteYAMLScalar(strings.TrimSpace(string(line[dashCol+len("- name: "):])))
+	p.pos++
+	it := item{Name: name}
+	contCol := dashCol + 2
+	for p.pos < len(p.lines) {
+		line := p.lines[p.pos]
+		col := leadingSpaces(line)
+		if col == len(line) {
+			p.pos++
+			continue
+		}
+		if col < contCol {
+			// Shallower than the entry's own siblings — we're out of
+			// this entry. Don't consume the line.
+			break
+		}
+		if col > contCol {
+			// Deeper indent than the entry's mapping-pair lines:
+			// folded-scalar continuation of e.g. a description that
+			// this parser doesn't need to interpret. Skip the line.
+			p.pos++
+			continue
+		}
+		rest := line[col:]
+		switch {
+		case bytes.HasPrefix(rest, []byte("type: ")):
+			it.Type = strings.TrimSpace(string(rest[len("type: "):]))
+			p.pos++
+		case bytes.HasPrefix(rest, []byte("path: ")):
+			it.Path = strings.TrimSpace(string(rest[len("path: "):]))
+			p.pos++
+		case bytes.HasPrefix(rest, []byte("fields:")):
+			p.pos++
+			it.Fields = p.parseFieldsAt(dashCol + 4)
+		default:
+			// Unknown line at sibling indent (e.g. metric_type:,
+			// description:, release:). Skip to stay forward-compatible.
+			p.pos++
+		}
+	}
+	return it
+}
+
+func leadingSpaces(b []byte) int {
+	i := 0
+	for i < len(b) && b[i] == ' ' {
+		i++
+	}
+	return i
 }
 
 // extractMetricTypes scans entry — the bytes of a single block-sequence

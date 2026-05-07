@@ -465,6 +465,98 @@
                         }
                       }
                     },
+                    "jaeger": {
+                      "properties": {
+                        "grpc": {
+                          "properties": {
+                            "collect": {
+                              "properties": {
+                                "request": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    }
+                                  }
+                                },
+                                "response": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    },
+                                    "errors": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        },
+                                        "ratelimit": {
+                                          "type": "long"
+                                        },
+                                        "timeout": {
+                                          "type": "long"
+                                        },
+                                        "unauthorized": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    },
+                                    "valid": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "sampling": {
+                              "properties": {
+                                "event": {
+                                  "properties": {
+                                    "received": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "request": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    }
+                                  }
+                                },
+                                "response": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "long"
+                                    },
+                                    "errors": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    },
+                                    "valid": {
+                                      "properties": {
+                                        "count": {
+                                          "type": "long"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
                     "otlp": {
                       "properties": {
                         "grpc": {
@@ -1233,6 +1325,9 @@
                                 "closed": {
                                   "type": "long"
                                 },
+                                "concurrency": {
+                                  "type": "long"
+                                },
                                 "count": {
                                   "type": "long"
                                 },
@@ -1458,6 +1553,33 @@
                 },
                 "output": {
                   "properties": {
+                    "elasticsearch": {
+                      "properties": {
+                        "bulk_requests": {
+                          "properties": {
+                            "available": {
+                              "type": "long"
+                            },
+                            "completed": {
+                              "type": "long"
+                            }
+                          }
+                        },
+                        "indexers": {
+                          "properties": {
+                            "active": {
+                              "type": "long"
+                            },
+                            "created": {
+                              "type": "long"
+                            },
+                            "destroyed": {
+                              "type": "long"
+                            }
+                          }
+                        }
+                      }
+                    },
                     "events": {
                       "properties": {
                         "acked": {

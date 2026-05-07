@@ -36,9 +36,10 @@ import (
 )
 
 // modifyMonitoringBeats updates the legacy Elasticsearch monitoring
-// template, replacing each metric's value under
-// mappings._doc.properties.beats_stats.properties.metrics.properties.
-// Aliases are not used in this template.
+// template, merging each metric's new properties into the existing
+// subtree under mappings._doc.properties.beats_stats.properties.metrics
+// .properties. Aliases are not used in this template. Upstream entries
+// that have no counterpart in /stats are preserved (see merge.go).
 func modifyMonitoringBeats(path string, stats []byte) error {
 	const placeholder = "${xpack.monitoring.template.release.version}"
 	parent := []string{"mappings", "_doc", "properties", "beats_stats", "properties", "metrics", "properties"}
@@ -55,7 +56,8 @@ func modifyMonitoringBeats(path string, stats []byte) error {
 			warnMissing(m, path)
 			continue
 		}
-		src, err = replaceJSONMember(src, parent, m.name, map[string]any{"properties": props})
+		merged := mergeProperties(readJSONExistingProperties(src, parent, m.name), props)
+		src, err = replaceJSONMember(src, parent, m.name, map[string]any{"properties": merged})
 		if err != nil {
 			return err
 		}
@@ -64,9 +66,10 @@ func modifyMonitoringBeats(path string, stats []byte) error {
 }
 
 // modifyMonitoringBeatsMB updates the metricbeat-flavored monitoring
-// template, replacing two parallel subtrees: an alias-based view under
-// template.mappings.properties.beats_stats.properties.metrics and a
-// concrete-typed view under template.mappings.properties.beat.properties.stats.
+// template, merging into two parallel subtrees: an alias-based view
+// under template.mappings.properties.beats_stats.properties.metrics and
+// a concrete-typed view under template.mappings.properties.beat
+// .properties.stats. Upstream entries are preserved.
 func modifyMonitoringBeatsMB(path string, stats []byte) error {
 	const placeholder = "${xpack.stack.monitoring.template.release.version}"
 	aliasParent := []string{"template", "mappings", "properties", "beats_stats", "properties", "metrics", "properties"}
@@ -84,7 +87,8 @@ func modifyMonitoringBeatsMB(path string, stats []byte) error {
 			warnMissing(m, path)
 			continue
 		}
-		src, err = replaceJSONMember(src, aliasParent, m.name, map[string]any{"properties": aliasProps})
+		mergedAlias := mergeProperties(readJSONExistingProperties(src, aliasParent, m.name), aliasProps)
+		src, err = replaceJSONMember(src, aliasParent, m.name, map[string]any{"properties": mergedAlias})
 		if err != nil {
 			return err
 		}
@@ -96,12 +100,30 @@ func modifyMonitoringBeatsMB(path string, stats []byte) error {
 			continue
 		}
 		underscore := strings.ReplaceAll(m.name, "-", "_")
-		src, err = replaceJSONMember(src, statsParent, underscore, map[string]any{"properties": concreteProps})
+		mergedConcrete := mergeProperties(readJSONExistingProperties(src, statsParent, underscore), concreteProps)
+		src, err = replaceJSONMember(src, statsParent, underscore, map[string]any{"properties": mergedConcrete})
 		if err != nil {
 			return err
 		}
 	}
 	return writeJSONTemplate(path, src, placeholder)
+}
+
+// readJSONExistingProperties returns the existing properties map at
+// parent[member].properties in src, or nil if the member is absent or
+// not a group entry.
+func readJSONExistingProperties(src []byte, parent []string, member string) map[string]any {
+	keys := append(append([]string{}, parent...), member)
+	start, end, err := findJSONValueAt(src, keys)
+	if err != nil {
+		return nil
+	}
+	var v map[string]any
+	if err := json.Unmarshal(src[start:end], &v); err != nil {
+		return nil
+	}
+	props, _ := v["properties"].(map[string]any)
+	return props
 }
 
 // warnMissing prints a one-line note to stderr when a metric isn't present
