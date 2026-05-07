@@ -41,6 +41,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // modifyBeatRoot updates metricbeat/module/beat/_meta/fields.yml.
@@ -186,7 +188,7 @@ func upsertYAML(path string, stats []byte, plan yamlPlan) error {
 			if plan.metricType == metricTypeRetain {
 				existingMetricTypes = extractMetricTypes(it.body)
 			}
-			existingFields = parseEntryFields(it.body, plan.childIndent)
+			existingFields = parseEntryFields(it.body)
 			break
 		}
 		merged := mergeFields(existingFields, fields)
@@ -308,194 +310,93 @@ func renderItem(buf *bytes.Buffer, it item, indent int, mt metricTypePolicy, ret
 	}
 }
 
-// parseEntryFields scans entry — the bytes of a single block-sequence
-// item written in the layout this tool emits — and returns the []item
-// tree for the entry's nested "fields:" list. baseDashCol is the
-// column of the entry's leading dash. Returns nil for leaf or alias
-// entries (no nested fields) and for groups whose fields list is
-// missing or empty.
+// yamlEntry mirrors the schema this tool reads on the upstream files
+// and writes back: each entry has a name, type, optional alias path,
+// optional fields list, and optional metric_type annotation. yaml.v3
+// handles every layout concern (indent, folded scalars, comments,
+// quoting variants) so this parser doesn't depend on the file's
+// formatting being any particular shape.
+type yamlEntry struct {
+	Name       string      `yaml:"name"`
+	Type       string      `yaml:"type"`
+	Path       string      `yaml:"path"`
+	Fields     []yamlEntry `yaml:"fields"`
+	MetricType string      `yaml:"metric_type"`
+}
+
+// parseEntryFields parses the bytes of a single block-sequence item
+// (the YAML chunk between two list-item dashes) and returns the
+// []item tree for that entry's nested "fields:" list. Returns nil for
+// leaf or alias entries (no nested fields) and on parse errors.
 //
-// Only handles the shape renderItem produces: each child entry begins
-// with "- name:" at column baseDashCol+4, followed by "type:" at +6
-// and either "fields:" (for groups), "path:" (for aliases), or
-// nothing else (for scalar leaves). metric_type lines are tolerated
-// and ignored — they're collected separately by extractMetricTypes.
-func parseEntryFields(entry []byte, baseDashCol int) []item {
-	lines := bytes.Split(entry, []byte{'\n'})
-	p := &yamlEntryParser{lines: lines}
-	// Skip past the entry's own "- name:" / "type: group" / "fields:"
-	// lines to position the parser at the first child entry.
-	for p.pos < len(p.lines) {
-		line := p.lines[p.pos]
-		p.pos++
-		if bytes.HasPrefix(bytes.TrimLeft(line, " "), []byte("fields:")) {
-			break
-		}
+// Goes through gopkg.in/yaml.v3, so the parse is robust against any
+// formatting the upstream files use — folded scalars, multi-line
+// strings, in-line comments, alternate quote styles — none of those
+// affect the result.
+func parseEntryFields(entry []byte) []item {
+	var seq []yamlEntry
+	if err := yaml.Unmarshal(entry, &seq); err != nil || len(seq) == 0 {
+		return nil
 	}
-	return p.parseFieldsAt(baseDashCol + 4)
+	return entriesToItems(seq[0].Fields)
 }
 
-// yamlEntryParser is a line-based parser for the YAML shape this tool
-// emits. It is intentionally narrow: it does not implement YAML, only
-// the strict layout renderItem produces.
-type yamlEntryParser struct {
-	lines [][]byte
-	pos   int
-}
-
-func (p *yamlEntryParser) parseFieldsAt(dashCol int) []item {
-	var out []item
-	for p.pos < len(p.lines) {
-		line := p.lines[p.pos]
-		col := leadingSpaces(line)
-		if col == len(line) {
-			p.pos++
+func entriesToItems(entries []yamlEntry) []item {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]item, 0, len(entries))
+	for _, e := range entries {
+		if e.Name == "" {
 			continue
 		}
-		if col < dashCol {
-			// Shallower than this list's items; we've reached the end
-			// of the list (or popped past it).
-			return out
-		}
-		if col > dashCol {
-			// Deeper indent than any sibling at dashCol — folded-scalar
-			// continuation of a previous leaf's description, or some
-			// other content this parser doesn't model. Skip the line.
-			p.pos++
-			continue
-		}
-		rest := line[col:]
-		if !bytes.HasPrefix(rest, []byte("- name: ")) {
-			return out
-		}
-		out = append(out, p.parseEntry(dashCol))
+		out = append(out, item{
+			Name:   e.Name,
+			Type:   e.Type,
+			Path:   e.Path,
+			Fields: entriesToItems(e.Fields),
+		})
 	}
 	return out
 }
 
-func (p *yamlEntryParser) parseEntry(dashCol int) item {
-	line := p.lines[p.pos]
-	name := unquoteYAMLScalar(strings.TrimSpace(string(line[dashCol+len("- name: "):])))
-	p.pos++
-	it := item{Name: name}
-	contCol := dashCol + 2
-	for p.pos < len(p.lines) {
-		line := p.lines[p.pos]
-		col := leadingSpaces(line)
-		if col == len(line) {
-			p.pos++
-			continue
-		}
-		if col < contCol {
-			// Shallower than the entry's own siblings — we're out of
-			// this entry. Don't consume the line.
-			break
-		}
-		if col > contCol {
-			// Deeper indent than the entry's mapping-pair lines:
-			// folded-scalar continuation of e.g. a description that
-			// this parser doesn't need to interpret. Skip the line.
-			p.pos++
-			continue
-		}
-		rest := line[col:]
-		switch {
-		case bytes.HasPrefix(rest, []byte("type: ")):
-			it.Type = strings.TrimSpace(string(rest[len("type: "):]))
-			p.pos++
-		case bytes.HasPrefix(rest, []byte("path: ")):
-			it.Path = strings.TrimSpace(string(rest[len("path: "):]))
-			p.pos++
-		case bytes.HasPrefix(rest, []byte("fields:")):
-			p.pos++
-			it.Fields = p.parseFieldsAt(dashCol + 4)
-		default:
-			// Unknown line at sibling indent (e.g. metric_type:,
-			// description:, release:). Skip to stay forward-compatible.
-			p.pos++
-		}
-	}
-	return it
-}
-
-func leadingSpaces(b []byte) int {
-	i := 0
-	for i < len(b) && b[i] == ' ' {
-		i++
-	}
-	return i
-}
-
-// extractMetricTypes scans entry — the bytes of a single block-sequence
-// item written in the same layout this tool emits — and returns a map of
-// dotted leaf path to metric_type value for every typed (non-group,
-// non-alias) leaf that carried a metric_type: annotation. Group and alias
-// entries are skipped because metric_type only applies to numeric leaves.
+// extractMetricTypes returns a map of dotted leaf path to metric_type
+// value for every typed (non-group, non-alias) leaf in entry that
+// carried a metric_type: annotation. Group and alias entries are
+// skipped because metric_type only applies to numeric leaves.
 //
-// The scanner relies on the file's strict 4-column-per-level indent and
-// "type:" / "metric_type:" siblings appearing at +2 from their owning
-// "- name:" line. It does not parse YAML in general; it only handles the
-// shape this tool itself produces.
+// Paths include the root entry's name as the leading component, to
+// match the fullPath renderItem builds when emitting the merged tree.
 func extractMetricTypes(entry []byte) map[string]string {
+	var seq []yamlEntry
+	if err := yaml.Unmarshal(entry, &seq); err != nil || len(seq) == 0 {
+		return nil
+	}
 	out := map[string]string{}
-	type frame struct {
-		name, ftype, metric string
-		dashCol             int
-	}
-	var stack []frame
+	collectMetricTypes(seq[0].Fields, seq[0].Name, out)
+	return out
+}
 
-	record := func(f frame) {
-		if f.ftype == "" || f.ftype == "group" || f.ftype == "alias" {
-			return
-		}
-		if f.metric == "" {
-			return
-		}
-		parts := make([]string, 0, len(stack)+1)
-		for _, p := range stack {
-			parts = append(parts, p.name)
-		}
-		parts = append(parts, f.name)
-		out[strings.Join(parts, ".")] = f.metric
-	}
-
-	closeTo := func(col int) {
-		for len(stack) > 0 && stack[len(stack)-1].dashCol >= col {
-			top := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			record(top)
-		}
-	}
-
-	for _, line := range bytes.Split(entry, []byte{'\n'}) {
-		s := string(line)
-		col := 0
-		for col < len(s) && s[col] == ' ' {
-			col++
-		}
-		if col == len(s) {
+func collectMetricTypes(entries []yamlEntry, prefix string, out map[string]string) {
+	for _, e := range entries {
+		if e.Name == "" {
 			continue
 		}
-		rest := s[col:]
-		switch {
-		case strings.HasPrefix(rest, "- name: "):
-			closeTo(col)
-			stack = append(stack, frame{
-				name:    unquoteYAMLScalar(strings.TrimSpace(rest[len("- name: "):])),
-				dashCol: col,
-			})
-		case strings.HasPrefix(rest, "type: "):
-			if n := len(stack); n > 0 {
-				stack[n-1].ftype = strings.TrimSpace(rest[len("type: "):])
-			}
-		case strings.HasPrefix(rest, "metric_type: "):
-			if n := len(stack); n > 0 {
-				stack[n-1].metric = strings.TrimSpace(rest[len("metric_type: "):])
-			}
+		path := e.Name
+		if prefix != "" {
+			path = prefix + "." + e.Name
+		}
+		if len(e.Fields) > 0 {
+			collectMetricTypes(e.Fields, path, out)
+			continue
+		}
+		if e.Type == "alias" {
+			continue
+		}
+		if e.MetricType != "" {
+			out[path] = e.MetricType
 		}
 	}
-	closeTo(0)
-	return out
 }
 
 // locateFieldsList walks plan.path through the document and returns the

@@ -53,7 +53,7 @@ func TestParseEntryFields_FoldedScalarSibling(t *testing.T) {
                   description: >
                     Number of requests received
 `)
-	got := parseEntryFields(entry, 4)
+	got := parseEntryFields(entry)
 	want := []item{
 		{Name: "sampling", Type: "group", Fields: []item{
 			{Name: "transactions_dropped", Type: "long"},
