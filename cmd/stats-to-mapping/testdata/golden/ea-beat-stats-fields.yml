@@ -350,33 +350,117 @@
                     - name: stored
                       type: long
                       metric_type: counter
-                - name: dynamic_service_groups
-                  type: long
-                  metric_type: FIXME
                 - name: storage
                   type: group
                   fields:
+                    - name: lsm_size
+                      type: long
+                      metric_type: gauge
+                    - name: value_log_size
+                      type: long
+                      metric_type: gauge
+                    - name: storage_limit
+                      type: long
+                      metric_type: gauge
+                    - name: disk_used
+                      type: long
+                      metric_type: gauge
                     - name: disk_total
                       type: long
                       metric_type: gauge
                     - name: disk_usage_threshold_pct
                       type: float
                       metric_type: gauge
-                    - name: disk_used
-                      type: long
-                      metric_type: gauge
-                    - name: lsm_size
-                      type: long
-                      metric_type: gauge
-                    - name: storage_limit
-                      type: long
-                      metric_type: gauge
-                    - name: value_log_size
-                      type: long
-                      metric_type: gauge
+                - name: dynamic_service_groups
+                  type: long
+                  metric_type: FIXME
             - name: transactions_dropped
               type: long
               metric_type: counter
+        - name: server
+          type: group
+          fields:
+            - name: request
+              type: group
+              fields:
+                - name: count
+                  type: long
+                  metric_type: counter
+            - name: request.count
+              type: long
+              metric_type: counter
+            - name: response
+              type: group
+              fields:
+                - name: count
+                  type: long
+                  metric_type: FIXME
+                - name: errors
+                  type: group
+                  fields:
+                    - name: closed
+                      type: long
+                      metric_type: FIXME
+                    - name: count
+                      type: long
+                      metric_type: FIXME
+                    - name: decode
+                      type: long
+                      metric_type: FIXME
+                    - name: forbidden
+                      type: long
+                      metric_type: FIXME
+                    - name: internal
+                      type: long
+                      metric_type: FIXME
+                    - name: invalidquery
+                      type: long
+                      metric_type: FIXME
+                    - name: method
+                      type: long
+                      metric_type: FIXME
+                    - name: notfound
+                      type: long
+                      metric_type: FIXME
+                    - name: queue
+                      type: long
+                      metric_type: FIXME
+                    - name: ratelimit
+                      type: long
+                      metric_type: FIXME
+                    - name: timeout
+                      type: long
+                      metric_type: FIXME
+                    - name: toolarge
+                      type: long
+                      metric_type: FIXME
+                    - name: unauthorized
+                      type: long
+                      metric_type: FIXME
+                    - name: unavailable
+                      type: long
+                      metric_type: FIXME
+                    - name: validate
+                      type: long
+                      metric_type: FIXME
+                - name: valid
+                  type: group
+                  fields:
+                    - name: accepted
+                      type: long
+                      metric_type: FIXME
+                    - name: count
+                      type: long
+                      metric_type: FIXME
+                    - name: notmodified
+                      type: long
+                      metric_type: FIXME
+                    - name: ok
+                      type: long
+                      metric_type: FIXME
+            - name: unset
+              type: long
+              metric_type: FIXME
         - name: acm
           type: group
           fields:
@@ -1016,84 +1100,6 @@
             - name: request.count
               type: long
               metric_type: FIXME
-            - name: response
-              type: group
-              fields:
-                - name: count
-                  type: long
-                  metric_type: FIXME
-                - name: errors
-                  type: group
-                  fields:
-                    - name: closed
-                      type: long
-                      metric_type: FIXME
-                    - name: count
-                      type: long
-                      metric_type: FIXME
-                    - name: decode
-                      type: long
-                      metric_type: FIXME
-                    - name: forbidden
-                      type: long
-                      metric_type: FIXME
-                    - name: internal
-                      type: long
-                      metric_type: FIXME
-                    - name: invalidquery
-                      type: long
-                      metric_type: FIXME
-                    - name: method
-                      type: long
-                      metric_type: FIXME
-                    - name: notfound
-                      type: long
-                      metric_type: FIXME
-                    - name: queue
-                      type: long
-                      metric_type: FIXME
-                    - name: ratelimit
-                      type: long
-                      metric_type: FIXME
-                    - name: timeout
-                      type: long
-                      metric_type: FIXME
-                    - name: toolarge
-                      type: long
-                      metric_type: FIXME
-                    - name: unauthorized
-                      type: long
-                      metric_type: FIXME
-                    - name: unavailable
-                      type: long
-                      metric_type: FIXME
-                    - name: validate
-                      type: long
-                      metric_type: FIXME
-                - name: valid
-                  type: group
-                  fields:
-                    - name: accepted
-                      type: long
-                      metric_type: FIXME
-                    - name: count
-                      type: long
-                      metric_type: FIXME
-                    - name: notmodified
-                      type: long
-                      metric_type: FIXME
-                    - name: ok
-                      type: long
-                      metric_type: FIXME
-            - name: unset
-              type: long
-              metric_type: FIXME
-        - name: server
-          type: group
-          fields:
-            - name: request.count
-              type: long
-              metric_type: counter
             - name: response
               type: group
               fields:

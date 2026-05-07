@@ -352,8 +352,17 @@ func (p *yamlEntryParser) parseFieldsAt(dashCol int) []item {
 			p.pos++
 			continue
 		}
-		if col != dashCol {
+		if col < dashCol {
+			// Shallower than this list's items; we've reached the end
+			// of the list (or popped past it).
 			return out
+		}
+		if col > dashCol {
+			// Deeper indent than any sibling at dashCol — folded-scalar
+			// continuation of a previous leaf's description, or some
+			// other content this parser doesn't model. Skip the line.
+			p.pos++
+			continue
 		}
 		rest := line[col:]
 		if !bytes.HasPrefix(rest, []byte("- name: ")) {
@@ -377,8 +386,17 @@ func (p *yamlEntryParser) parseEntry(dashCol int) item {
 			p.pos++
 			continue
 		}
-		if col != contCol {
+		if col < contCol {
+			// Shallower than the entry's own siblings — we're out of
+			// this entry. Don't consume the line.
 			break
+		}
+		if col > contCol {
+			// Deeper indent than the entry's mapping-pair lines:
+			// folded-scalar continuation of e.g. a description that
+			// this parser doesn't need to interpret. Skip the line.
+			p.pos++
+			continue
 		}
 		rest := line[col:]
 		switch {
@@ -392,9 +410,8 @@ func (p *yamlEntryParser) parseEntry(dashCol int) item {
 			p.pos++
 			it.Fields = p.parseFieldsAt(dashCol + 4)
 		default:
-			// Unknown line at sibling indent (e.g. metric_type:). Skip
-			// to stay forward-compatible with annotations renderItem
-			// emits but parseEntryFields doesn't itself need.
+			// Unknown line at sibling indent (e.g. metric_type:,
+			// description:, release:). Skip to stay forward-compatible.
 			p.pos++
 		}
 	}
