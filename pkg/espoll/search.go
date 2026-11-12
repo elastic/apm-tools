@@ -76,7 +76,9 @@ func (es *Client) SearchIndexMinDocs(
 func (es *Client) NewSearchRequest(index string) *SearchRequest {
 	req := &SearchRequest{es: es}
 	req.Index = strings.Split(index, ",")
-	req.Body = strings.NewReader(`{"fields": ["*"]}`)
+	req.Body = esutil.NewJSONReader(struct {
+		Fields []string `json:"fields"`
+	}{Fields: []string{"*"}})
 	return req
 }
 
